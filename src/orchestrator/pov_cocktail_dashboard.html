@@ -1,0 +1,2974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>POV Cocktail Video Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-deep:    #0a0c12;
+    --bg-card:    #111420;
+    --bg-raised:  #181c2b;
+    --border:     rgba(255,255,255,0.07);
+    --border-lit: rgba(201,162,79,0.35);
+    --gold:       #c9a24f;
+    --gold-pale:  #e8c97a;
+    --gold-dim:   rgba(201,162,79,0.15);
+    --text-hi:    #f0ede8;
+    --text-mid:   #9a9aaa;
+    --text-lo:    #4a4a5a;
+    --red:        #e05a4f;
+    --green:      #4fbb8a;
+    --blue:       #5a8fe0;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg-deep);
+    color: var(--text-hi);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 40% at 20% 10%, rgba(201,162,79,0.06) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 30% at 80% 90%, rgba(90,143,224,0.05) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .shell {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── HEADER ─────────────────────────────────────────── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 22px 40px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(10,12,18,0.8);
+    backdrop-filter: blur(12px);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo { display: flex; align-items: center; gap: 16x; }
+  .logo-img {
+    width: 100px; height: 100px; border-radius: 12px; 
+    object-fit: cover; border: 1px solid var(--gold-dim);
+  }
+  .logo-text { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 300; letter-spacing: 0.04em; }
+  .logo-text span { color: var(--gold); font-weight: 600; }
+  .header-meta { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-mid); }
+  .status-dot {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--green);
+    box-shadow: 0 0 6px var(--green); animation: pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  /* ── HERO ───────────────────────────────────────────── */
+  .hero { text-align: center; padding: 48px 40px 32px; }
+  .hero-eyebrow { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold); margin-bottom: 12px; opacity: 0.8; }
+  .hero-title {
+    font-family: 'Cormorant Garamond', serif; font-size: clamp(36px, 5vw, 56px); font-weight: 300;
+    line-height: 1.1; letter-spacing: -0.01em; background: linear-gradient(135deg, #f0ede8 0%, #c9a24f 45%, #f0ede8 100%);
+    background-size: 200% 200%; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    animation: shimmer 5s ease-in-out infinite;
+  }
+  @keyframes shimmer { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+  .hero-sub { margin-top: 10px; font-size: 14px; color: var(--text-mid); font-weight: 300; }
+
+  /* ── MAIN CONTENT ───────────────────────────────────── */
+  .main { flex: 1; max-width: 900px; width: 100%; margin: 0 auto; padding: 0 24px 60px; }
+
+  /* ── VIEWS ────────────────────────────────────────── */
+  .view-pane { display: none; }
+  .view-pane.active-view { display: block; animation: fadeIn 0.4s ease forwards; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ── SECTION DIVIDER ────────────────────────────────── */
+  .section-label { font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-lo); text-align: center; margin: 0 0 24px; display: flex; align-items: center; gap: 16px; }
+  .section-label::before, .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* ── MODE CARDS GRID ────────────────────────────────── */
+  .mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .mode-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 26px 24px; cursor: pointer; transition: border-color 0.2s, background 0.2s, transform 0.15s; position: relative; overflow: hidden; text-align: left; user-select: none; }
+  .mode-card::after { content: ''; position: absolute; inset: 0; border-radius: 12px; background: linear-gradient(135deg, var(--gold-dim), transparent); opacity: 0; transition: opacity 0.2s; }
+  .mode-card:hover { border-color: var(--border-lit); background: var(--bg-raised); transform: translateY(-2px); }
+  .mode-card:hover::after { opacity: 1; }
+  .mode-icon { font-size: 24px; margin-bottom: 12px; display: block; line-height: 1; position: relative; z-index: 1; }
+  .mode-title { font-size: 15px; font-weight: 600; color: var(--text-hi); margin-bottom: 6px; position: relative; z-index: 1; letter-spacing: 0.01em; }
+  .mode-desc { font-size: 12px; color: var(--text-mid); line-height: 1.5; position: relative; z-index: 1; }
+  .style-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 20px; width: 100%; }
+  .style-grid .mode-card { text-align: left; }
+
+  /* Expanded layout handling for 3-item home grid variations if needed */
+  #view-home .mode-grid { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+
+  /* ── STRATEGIST PANEL ────────────────────────────── */
+  .strategist-panel { background: var(--bg-card); border: 1px solid var(--border-lit); border-radius: 16px; padding: 48px 32px; text-align: center; max-width: 600px; margin: 0 auto; box-shadow: 0 12px 40px rgba(0,0,0,0.3); }
+  .panel-badge { display: inline-block; font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--gold); border: 1px solid var(--border-lit); padding: 4px 12px; border-radius: 20px; margin-bottom: 20px; background: rgba(201,162,79,0.05); }
+  .panel-title { font-family: 'Cormorant Garamond', serif; font-size: 32px; font-weight: 300; color: var(--text-hi); margin-bottom: 12px; }
+  .panel-sub { font-size: 14px; color: var(--text-mid); margin-bottom: 32px; max-width: 440px; margin-left: auto; margin-right: auto; }
+
+  /* ── FOOTER BAR ─────────────────────────────────────── */
+  footer { border-top: 1px solid var(--border); padding: 16px 40px; display: flex; align-items: center; justify-content: space-between; background: rgba(10,12,18,0.6); font-size: 11px; color: var(--text-lo); margin-top: auto; }
+  .back-link { color: var(--text-mid); text-decoration: none; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12px; transition: color 0.15s; font-weight: 500; }
+  .back-link:hover { color: var(--gold); }
+
+  /* ── TOAST ──────────────────────────────────────────── */
+  .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--bg-raised); border: 1px solid var(--border-lit); border-radius: 8px; padding: 12px 20px; font-size: 13px; color: var(--text-hi); box-shadow: 0 8px 32px rgba(0,0,0,0.5); opacity: 0; transition: opacity 0.25s, transform 0.25s; pointer-events: none; z-index: 200; white-space: nowrap; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ── MODALS & FIELDS ───────────────────────────────── */
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(6px); z-index: 150; display: none; align-items: center; justify-content: center; padding: 24px; }
+  .modal-bg.open { display: flex; }
+  .modal { background: var(--bg-card); border: 1px solid var(--border-lit); border-radius: 16px; padding: 32px; max-width: 520px; width: 100%; box-shadow: 0 24px 64px rgba(0,0,0,0.6); max-height: 85vh; display: flex; flex-direction: column;}
+  .modal-title { font-family: 'Cormorant Garamond', serif; font-size: 26px; font-weight: 300; margin-bottom: 6px; color: var(--text-hi); }
+  .modal-sub { font-size: 13px; color: var(--text-mid); margin-bottom: 24px; }
+  .field { margin-bottom: 16px; text-align: left; }
+  .field label { display: block; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-lo); margin-bottom: 6px; }
+  .field input, .field select, .field textarea { width: 100%; background: var(--bg-deep); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-family: 'Inter', sans-serif; font-size: 13px; color: var(--text-hi); outline: none; transition: border-color 0.2s; caret-color: var(--gold); }
+  .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--border-lit); }
+  .modal-row { display: flex; gap: 10px; margin-top: 20px; }
+  .btn-primary { display: inline-flex; align-items: center; justify-content: center; padding: 14px 32px; background: linear-gradient(135deg, #b8912a, #c9a24f); border: none; border-radius: 8px; color: #0a0c12; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 14px; cursor: pointer; transition: opacity 0.2s, transform 0.1s; letter-spacing: 0.02em; }
+  .btn-primary:hover { opacity: 0.92; }
+  .btn-primary:active { transform: scale(0.98); }
+  .btn-ghost { padding: 12px 20px; background: transparent; border: 1px solid var(--border); border-radius: 8px; color: var(--text-mid); font-family: 'Inter', sans-serif; font-size: 13px; cursor: pointer; transition: border-color 0.2s; }
+  .btn-ghost:hover { border-color: var(--border-lit); }
+
+  .db-list { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; padding-right: 4px; text-align: left;}
+  .db-list-item { background: var(--bg-deep); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; cursor: pointer; transition: border-color 0.2s, background 0.2s; display: flex; justify-content: space-between; align-items: center; }
+  .db-list-item:hover { border-color: var(--gold); background: rgba(201,162,79,0.05); }
+  .list-item-title { font-size: 13px; font-weight: 500; color: var(--text-hi); margin-bottom: 2px; }
+  .list-item-meta { font-size: 11px; color: var(--text-mid); }
+
+  /* ── GENERATION TIMELINE ─────────────────────────── */
+  .gen-timeline { margin: 28px 0 4px; text-align: left; }
+  .tl-step { display: flex; align-items: flex-start; gap: 14px; padding: 9px 0; position: relative; }
+  .tl-step:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: 7px;
+    top: 22px;
+    width: 2px;
+    height: calc(100% - 10px);
+    background: var(--border);
+    z-index: 0;
+  }
+  .tl-dot {
+    width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0;
+    margin-top: 2px; position: relative; z-index: 1;
+    transition: background 0.3s, box-shadow 0.3s;
+  }
+  .tl-step.pending .tl-dot  { background: var(--text-lo); }
+  .tl-step.active  .tl-dot  { background: var(--gold); box-shadow: 0 0 10px rgba(201,162,79,0.7); animation: tlPulse 1s ease-in-out infinite; }
+  .tl-step.retry   .tl-dot  { background: var(--red);  box-shadow: 0 0 10px rgba(224,90,79,0.7);  animation: tlPulse 0.7s ease-in-out infinite; }
+  .tl-step.done    .tl-dot  { background: var(--green); box-shadow: 0 0 6px rgba(79,187,138,0.5); }
+  .tl-step.error   .tl-dot  { background: var(--red); }
+  @keyframes tlPulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.35); opacity: 0.65; } }
+  .tl-content { flex: 1; }
+  .tl-label { font-size: 13px; font-weight: 500; line-height: 1.4; transition: color 0.3s; }
+  .tl-step.pending .tl-label { color: var(--text-lo); }
+  .tl-step.active  .tl-label { color: var(--gold); }
+  .tl-step.retry   .tl-label { color: var(--red); }
+  .tl-step.done    .tl-label { color: var(--green); }
+  .tl-step.error   .tl-label { color: var(--red); }
+  .tl-desc { font-size: 11px; color: var(--text-mid); margin-top: 2px; min-height: 14px; transition: opacity 0.3s; }
+
+  /* ── IDEAS GRID ──────────────────────────────────── */
+  .ideas-header { text-align: center; margin-bottom: 28px; padding-top: 8px; }
+  .ideas-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px; }
+  .idea-card {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 22px 18px; cursor: pointer;
+    transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s;
+    position: relative; overflow: hidden;
+  }
+  .idea-card::after {
+    content: ''; position: absolute; inset: 0; border-radius: 12px;
+    background: linear-gradient(135deg, var(--gold-dim), transparent);
+    opacity: 0; transition: opacity 0.2s; pointer-events: none;
+  }
+  .idea-card:hover { border-color: var(--border-lit); transform: translateY(-3px); box-shadow: 0 10px 32px rgba(201,162,79,0.1); }
+  .idea-card:hover::after { opacity: 1; }
+  .idea-num { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold); margin-bottom: 10px; opacity: 0.8; position: relative; z-index: 1; }
+  .idea-title { font-family: 'Cormorant Garamond', serif; font-size: 17px; font-weight: 400; color: var(--text-hi); margin-bottom: 6px; line-height: 1.3; position: relative; z-index: 1; }
+  .idea-cocktail { font-size: 11px; color: var(--gold-pale); margin-bottom: 10px; position: relative; z-index: 1; letter-spacing: 0.03em; }
+  .idea-excerpt {
+    font-size: 12px; color: var(--text-mid); line-height: 1.55; position: relative; z-index: 1;
+    overflow: hidden; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical;
+  }
+  .idea-cta { margin-top: 14px; font-size: 11px; color: var(--gold); letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.7; position: relative; z-index: 1; }
+  .ideas-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 8px; padding-top: 16px; border-top: 1px solid var(--border);
+  }
+
+  /* ── IDEA OPTION MODAL ───────────────────────────── */
+  .idea-full-text {
+    background: var(--bg-deep); border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px; font-size: 12px; color: var(--text-mid); line-height: 1.65;
+    max-height: 220px; overflow-y: auto; white-space: pre-wrap; text-align: left;
+    margin: 0 0 20px; flex-shrink: 0;
+  }
+  .option-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px; }
+  .btn-gold-ghost {
+    padding: 12px 16px; background: transparent; border: 1px solid var(--border-lit);
+    border-radius: 8px; color: var(--gold); font-family: 'Inter', sans-serif;
+    font-size: 13px; font-weight: 500; cursor: pointer; transition: background 0.2s;
+  }
+  .btn-gold-ghost:hover { background: rgba(201,162,79,0.08); }
+  .modal-cancel {
+    display: block; text-align: center; font-size: 12px; color: var(--text-lo);
+    cursor: pointer; margin-top: 4px; padding: 6px;
+  }
+  .modal-cancel:hover { color: var(--text-mid); }
+
+  /* ── DIRECTOR AGENT ──────────────────────────────── */
+  .idea-summary-box {
+    background: var(--bg-deep); border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px 18px; text-align: left; margin-bottom: 24px;
+  }
+  .summary-label { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); margin-bottom: 8px; opacity: 0.8; }
+  .summary-title { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 400; color: var(--text-hi); margin-bottom: 4px; line-height: 1.3; }
+  .summary-meta { font-size: 12px; color: var(--gold-pale); margin-bottom: 10px; letter-spacing: 0.03em; }
+  .summary-text { font-size: 12px; color: var(--text-mid); line-height: 1.55; white-space: pre-wrap; max-height: 130px; overflow-y: auto; }
+
+  /* ── SCENE BRIEF ─────────────────────────────────── */
+  .scenes-container { text-align: left; margin-top: 8px; }
+  .scene-card {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 18px 20px; margin-bottom: 12px;
+  }
+  .scene-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .scene-num { font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--gold); opacity: 0.8; }
+  .scene-phase { font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 400; color: var(--text-hi); }
+  .scene-duration { margin-left: auto; font-size: 11px; color: var(--text-lo); }
+  .scene-field { margin-bottom: 10px; }
+  .scene-field-label { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-lo); margin-bottom: 4px; }
+  .scene-field-value { font-size: 12px; color: var(--text-mid); line-height: 1.6; }
+  .scene-vo { font-size: 12px; color: var(--text-hi); line-height: 1.6; font-style: italic; border-left: 2px solid var(--border-lit); padding-left: 10px; }
+
+  .director-notes-card {
+    background: var(--bg-raised); border: 1px solid var(--border-lit); border-radius: 10px;
+    padding: 18px 20px; margin-top: 20px;
+  }
+  .director-notes-title { font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--gold); margin-bottom: 14px; opacity: 0.8; }
+  .note-row { margin-bottom: 10px; }
+  .note-label { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-lo); margin-bottom: 3px; }
+  .note-value { font-size: 12px; color: var(--text-mid); line-height: 1.6; }
+
+  /* ── PIPELINE OUTPUT CARDS ──────────────────────────── */
+  .pipeline-output-card {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 18px 20px; overflow: hidden;
+  }
+  .pipeline-card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--border);
+  }
+  .pipeline-card-label {
+    font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--gold); opacity: 0.85;
+  }
+  .btn-regen {
+    font-size: 11px; padding: 4px 10px; background: transparent;
+    border: 1px solid var(--border); border-radius: 5px; color: var(--text-mid);
+    cursor: pointer; transition: border-color 0.15s, color 0.15s;
+  }
+  .btn-regen:hover { border-color: var(--border-lit); color: var(--gold); }
+  .pipeline-raw {
+    font-family: 'Courier New', monospace; font-size: 11px; color: var(--text-mid);
+    line-height: 1.7; white-space: pre-wrap; word-break: break-word;
+    max-height: 360px; overflow-y: auto; margin: 0;
+  }
+
+  /* ── CONTINUITY PROPS DISPLAY ────────────────────────── */
+  .props-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .prop-row { display: flex; flex-direction: column; gap: 3px; padding: 8px 10px; background: var(--bg-deep); border-radius: 6px; }
+  .prop-key { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-lo); }
+  .prop-val { font-size: 12px; color: var(--text-hi); line-height: 1.5; }
+  .prop-notes { grid-column: 1 / -1; }
+
+  /* ── SCENE CREATOR OUTPUT ────────────────────────────── */
+  .phase-block { margin-bottom: 28px; }
+  .phase-header {
+    display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+    background: rgba(201,162,79,0.06); border: 1px solid var(--border-lit);
+    border-radius: 8px; margin-bottom: 12px;
+  }
+  .phase-num { font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--gold); }
+  .phase-name { font-family: 'Cormorant Garamond', serif; font-size: 16px; font-weight: 400; color: var(--text-hi); }
+  .phase-meta { margin-left: auto; display: flex; gap: 10px; font-size: 10px; color: var(--text-lo); }
+  .phase-regen { font-size: 10px; padding: 3px 8px; }
+
+  .clip-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; margin-bottom: 10px; }
+  .clip-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .clip-num { font-size: 11px; color: var(--gold); font-weight: 600; }
+  .clip-title { font-size: 13px; font-weight: 500; color: var(--text-hi); flex: 1; }
+  .clip-duration { font-size: 11px; color: var(--text-lo); }
+  .clip-badge { font-size: 9px; padding: 2px 7px; border-radius: 4px; background: rgba(79,187,138,0.12); color: var(--green); border: 1px solid rgba(79,187,138,0.3); letter-spacing: 0.08em; text-transform: uppercase; }
+  .clip-badge.badge-edited { background: rgba(168,120,220,0.14); color: #b48be0; border-color: rgba(168,120,220,0.4); }
+  .clip-shot-type { font-size: 9px; padding: 2px 7px; border-radius: 4px; background: rgba(201,162,79,0.08); color: var(--gold); border: 1px solid rgba(201,162,79,0.2); letter-spacing: 0.06em; text-transform: uppercase; }
+
+  .clip-section { margin-bottom: 12px; }
+  .clip-section-label { display: flex; align-items: center; gap: 6px; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-lo); margin-bottom: 6px; }
+  .clip-section-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot-ideogram { background: #5a8fe0; }
+  .dot-kling   { background: #c9a24f; }
+  .dot-vo      { background: var(--green); }
+  .clip-prompt { font-family: 'Courier New', monospace; font-size: 11px; color: var(--text-mid); line-height: 1.65; white-space: pre-wrap; background: var(--bg-deep); padding: 10px 12px; border-radius: 6px; }
+  .clip-vo-params { font-size: 10px; color: var(--text-lo); letter-spacing: 0.08em; margin-bottom: 5px; }
+  .clip-vo-text { font-size: 13px; color: var(--text-hi); line-height: 1.6; font-style: italic; border-left: 2px solid var(--border-lit); padding-left: 10px; }
+  .clip-note { font-size: 11px; color: var(--text-mid); font-style: italic; margin-top: 8px; opacity: 0.75; }
+  .clip-foreground { font-size: 11px; color: var(--text-mid); background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; margin-bottom: 10px; white-space: pre-wrap; line-height: 1.5; }
+  .clip-startframe { display: flex; align-items: center; gap: 8px; font-size: 11px; border-radius: 6px; padding: 7px 10px; margin-bottom: 10px; border: 1px solid; }
+  .clip-startframe .sf-icon { font-size: 10px; }
+  .clip-startframe .sf-mode { font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 7px; border-radius: 4px; }
+  .clip-startframe .sf-text { color: var(--text-hi); }
+  .sf-reestablish { background: rgba(90,143,224,0.07); border-color: rgba(90,143,224,0.3); }
+  .sf-reestablish .sf-icon, .sf-reestablish .sf-mode { color: #5a8fe0; }
+  .sf-reestablish .sf-mode { background: rgba(90,143,224,0.12); }
+  .sf-continue { background: rgba(201,162,79,0.06); border-color: rgba(201,162,79,0.3); }
+  .sf-continue .sf-icon, .sf-continue .sf-mode { color: var(--gold); }
+  .sf-continue .sf-mode { background: rgba(201,162,79,0.12); }
+  .clip-usercheck { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; line-height: 1.45; border-radius: 6px; padding: 8px 10px; margin-bottom: 10px; background: rgba(90,200,120,0.07); border: 1px solid rgba(90,200,120,0.28); }
+  .clip-usercheck .uc-icon { font-size: 11px; flex-shrink: 0; }
+  .clip-usercheck .uc-text { color: var(--text-hi); }
+
+  /* ── DELETE BUTTON ───────────────────────────────────── */
+  .btn-delete-row {
+    flex-shrink: 0; width: 28px; height: 28px; border-radius: 6px;
+    background: transparent; border: 1px solid transparent;
+    color: var(--text-lo); font-size: 14px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+  }
+  .btn-delete-row:hover { border-color: rgba(224,90,79,0.4); color: var(--red); background: rgba(224,90,79,0.07); }
+
+  /* Copy + Edit buttons */
+  .btn-copy, .btn-edit-toggle {
+    flex-shrink: 0; padding: 3px 8px; border-radius: 5px; font-size: 10px;
+    font-weight: 600; letter-spacing: .06em; cursor: pointer; transition: all .15s;
+    background: transparent; border: 1px solid var(--border); color: var(--text-lo);
+  }
+  .btn-copy:hover  { border-color: var(--border-lit); color: var(--text-mid); }
+  .btn-edit-toggle { margin-left: 4px; }
+  .btn-edit-toggle:hover { border-color: var(--gold-dim); color: var(--gold); }
+  .btn-edit-toggle.active { border-color: var(--gold); color: var(--gold); background: var(--gold-dim); }
+  .btn-undo {
+    flex-shrink: 0; padding: 3px 8px; border-radius: 5px; font-size: 10px;
+    font-weight: 600; cursor: pointer; transition: all .15s; margin-left: 4px;
+    background: transparent; border: 1px solid var(--border); color: var(--text-lo);
+    display: none;
+  }
+  .btn-undo:hover { border-color: var(--border-lit); color: var(--gold-pale); }
+
+  /* Clip-level copy */
+  .clip-section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .clip-section-label  { margin-bottom: 0 !important; }
+
+  /* Inline edit textarea */
+  .edit-textarea {
+    display: none; width: 100%; min-height: 160px; background: var(--bg-raised);
+    border: 1px solid var(--gold-dim); border-radius: 6px; color: var(--text-hi);
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; line-height: 1.5;
+    padding: 10px; resize: vertical; box-sizing: border-box; margin-top: 8px;
+  }
+  .edit-textarea:focus { outline: none; border-color: var(--gold); }
+
+  /* Rating stars */
+  .rating-row { display: flex; gap: 3px; align-items: center; margin-top: 6px; }
+  .star-btn {
+    background: none; border: none; cursor: pointer; font-size: 14px; padding: 0 1px;
+    color: var(--text-lo); transition: color .1s; line-height: 1;
+  }
+  .star-btn.lit, .star-btn:hover { color: var(--gold); }
+
+  /* Style stat badges */
+  .style-stat {
+    font-size: 10px; color: var(--text-lo); margin-top: 6px;
+    letter-spacing: .04em; position: relative; z-index: 1;
+  }
+  .style-stat.has-data { color: var(--gold-pale); }
+
+  /* Script modal */
+  .script-line {
+    padding: 12px 14px; background: var(--bg-raised); border-radius: 8px;
+    border-left: 3px solid var(--gold-dim); margin-bottom: 10px;
+  }
+  .script-clip-meta { font-size: 10px; color: var(--text-lo); margin-bottom: 5px; letter-spacing: .05em; }
+  .script-line-text { font-size: 14px; color: var(--text-hi); line-height: 1.6; font-style: italic; }
+  .script-phase-label {
+    font-size: 10px; letter-spacing: .15em; text-transform: uppercase;
+    color: var(--text-lo); margin: 20px 0 10px; padding-top: 10px;
+    border-top: 1px solid var(--border);
+  }
+  .script-phase-label:first-child { border-top: none; margin-top: 0; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <header>
+    <div class="logo" onclick="goHome()" style="cursor:pointer;" title="Return to home">
+      <img src="logo.jpg" alt="Logo" class="logo-img" onerror="this.style.display='none';">
+      <span class="logo-text"><span>POV COCKTAIL</span> AI Generator</span>
+    </div>
+    <div class="header-meta">
+      <div class="status-dot"></div>
+      <span id="nav-context-text">Studio Control</span>
+    </div>
+  </header>
+
+  <div class="hero" id="main-hero">
+    <div class="hero-eyebrow">POV Cocktail Content Engine</div>
+    <h1 class="hero-title">Decide what you would like to create!</h1>
+    <p class="hero-sub">Generate ideas, continue projects, and manage your content database.</p>
+  </div>
+           
+  <main class="main">
+
+    <!-- ── HOME ─────────────────────────────────────── -->
+    <div id="view-home" class="view-pane active-view">
+      <div class="section-label">Main Functions</div>
+      <div class="mode-grid">
+        <div class="mode-card" onclick="openDatabaseForm()">
+          <span class="mode-icon">🗃️</span>
+          <div class="mode-title">Update Database</div>
+          <div class="mode-desc">Log a completed video, append pipeline parameters, and cache metrics.</div>
+        </div>
+
+        <div class="mode-card" onclick="switchView('view-protocol-menu', 'Protocol Sub-Menu')">
+          <span class="mode-icon">🎬</span>
+          <div class="mode-title">Generate New Protocol</div>
+          <div class="mode-desc">Initialize creative models and build out multi-agent automation loops.</div>
+        </div>
+
+        <div class="mode-card" onclick="openVideoDatabase()">
+          <span class="mode-icon">📚</span>
+          <div class="mode-title">View Database</div>
+          <div class="mode-desc">View and analyse historical video data.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── VIDEO DATABASE ────────────────────────────── -->
+    <div id="view-video-database" class="view-pane">
+      <div class="section-label">Historical Production Logs</div>
+      <div class="db-list" id="videoDatabaseContainer" style="max-height: 60vh; background: var(--bg-card); padding: 20px; border-radius: 12px; border: 1px solid var(--border);">
+      </div>
+      <div style="text-align: right; margin-top: 12px;">
+        <button class="btn-ghost" style="padding: 8px 16px; font-size: 11px;" onclick="openUpdateNotesModal()">+ ADD NOTES</button>
+      </div>
+    </div>
+
+    <!-- ── PROTOCOL MENU ─────────────────────────────── -->
+    <div id="view-protocol-menu" class="view-pane">
+      <div class="section-label">Pipeline Sub-Actions</div>
+      <div class="mode-grid">
+        <div class="mode-card" onclick="navigateToStrategist('New Idea Loop')">
+          <span class="mode-icon">💡</span>
+          <div class="mode-title">Generate New Idea</div>
+          <div class="mode-desc">Bootstrap standard strategy generation directly from structural constraints.</div>
+        </div>
+        <div class="mode-card" onclick="openDynamicList('/api/ideas', 'Existing Ideas Database', 'Select cached strategy concepts.')">
+          <span class="mode-icon">🗄️</span>
+          <div class="mode-title">From Existing Ideas Database</div>
+          <div class="mode-desc">Pull a validated architecture from your persistent concept library.</div>
+        </div>
+        <div class="mode-card" onclick="resumeSession()">
+          <span class="mode-icon">⏳</span>
+          <div class="mode-title">Continue Existing Unfinished Protocol</div>
+          <div class="mode-desc">Resume your last session — restores your idea and any generated scenes.</div>
+        </div>
+        <div class="mode-card" onclick="document.getElementById('imageUpload').click()">
+          <span class="mode-icon">📸</span>
+          <div class="mode-title">Generate From Uploaded Image</div>
+          <div class="mode-desc">Extract localized semantic vectors from an uploaded snapshot image.</div>
+          <input type="file" id="imageUpload" style="display:none" accept="image/*" onchange="handleImageSelection()">
+        </div>
+      </div>
+    </div>
+
+    <!-- ── CREATIVE STRATEGIST TRIGGER ───────────────── -->
+    <div id="view-strategist-execution" class="view-pane">
+      <div class="strategist-panel">
+        <span class="panel-badge" id="execution-badge">Creative Strategist</span>
+        <h2 class="panel-title">Choose a Style</h2>
+        <p class="panel-sub" id="execution-sub">Select the type of video to generate — this steers the ideas toward a specific format and tone.</p>
+        <div class="style-grid">
+          <div class="mode-card" onclick="selectStyle('bar')">
+            <span class="mode-icon">🍸</span>
+            <div class="mode-title">Bar / Classic</div>
+            <div class="mode-desc">Traditional bar craft — stirring, shaking, layering, infusing. Every technique home-replicable. Elegance over spectacle.</div>
+            <div class="style-stat" id="stat-bar">No data yet</div>
+          </div>
+          <div class="mode-card" onclick="selectStyle('science')">
+            <span class="mode-icon">🔬</span>
+            <div class="mode-title">Science / Lab</div>
+            <div class="mode-desc">Visually spectacular and unexpected — lab techniques that produce a measurably different cocktail. Dramatic visual transformation is the wow.</div>
+            <div class="style-stat" id="stat-science">No data yet</div>
+          </div>
+          <div class="mode-card" onclick="selectStyle('comparison')">
+            <span class="mode-icon">⚖️</span>
+            <div class="mode-title">Head-to-Head</div>
+            <div class="mode-desc">Two techniques, methods or cocktails compared directly. Identical conditions, one winner. Always a clear verdict.</div>
+            <div class="style-stat" id="stat-comparison">No data yet</div>
+          </div>
+          <div class="mode-card" onclick="selectStyle('mythbusting')">
+            <span class="mode-icon">🧪</span>
+            <div class="mode-title">Myth-Busting</div>
+            <div class="mode-desc">Test a specific, falsifiable claim about cocktails or technique. One experiment, one definitive answer — confirmed or debunked.</div>
+            <div class="style-stat" id="stat-mythbusting">No data yet</div>
+          </div>
+          <div class="mode-card" onclick="selectStyle('historical')">
+            <span class="mode-icon">📜</span>
+            <div class="mode-title">Historical Dive</div>
+            <div class="mode-desc">Find where a cocktail or technique actually came from. The real story, not the popular version — delivered as confirmed fact.</div>
+            <div class="style-stat" id="stat-historical">No data yet</div>
+          </div>
+          <div class="mode-card" onclick="selectStyle('challenge')">
+            <span class="mode-icon">⚡</span>
+            <div class="mode-title">Challenge</div>
+            <div class="mode-desc">One constraint. Total commitment. POV Cocktail follows the rule exactly and never acknowledges it's absurd.</div>
+            <div class="style-stat" id="stat-challenge">No data yet</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── GENERATING / TIMELINE ─────────────────────── -->
+    <div id="view-generating" class="view-pane">
+      <div class="strategist-panel">
+        <span class="panel-badge" id="gen-badge">Creative Strategist · Active</span>
+        <h2 class="panel-title">Generating Ideas</h2>
+        <p class="panel-sub" id="gen-confirm-msg">Pipeline initialised. Connecting to Gemini API now.</p>
+        <div class="gen-timeline" id="gen-timeline"></div>
+      </div>
+    </div>
+
+    <!-- ── IDEAS GRID ─────────────────────────────────── -->
+    <div id="view-ideas" class="view-pane">
+      <div class="ideas-header">
+        <span class="panel-badge">Creative Strategist · Output</span>
+        <h2 style="font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:300;color:var(--text-hi);margin:14px 0 6px;" id="ideas-heading">Protocol Ideas</h2>
+        <p style="font-size:13px;color:var(--text-mid);">Click to develop or save for later.</p>
+      </div>
+      <div class="ideas-grid" id="ideasGrid"></div>
+      <div class="ideas-footer">
+        <button class="btn-ghost" onclick="regenerateIdeas()">↺ Regenerate</button>
+        <button class="btn-primary" id="btn-continue" onclick="goToDirectorAgent()" style="display:none;">Continue to Next Step →</button>
+      </div>
+    </div>
+
+    <!-- ── DIRECTOR AGENT ────────────────────────────── -->
+    <!-- ── PRE-PRODUCTION (Science + Recipe) ────────────── -->
+    <div id="view-director-agent" class="view-pane">
+      <div id="pp-state-ready" class="strategist-panel">
+        <span class="panel-badge">Pre-Production · Ready</span>
+        <h2 class="panel-title">Pre-Production</h2>
+        <p class="panel-sub">Science Developer and Recipe Architect will run simultaneously — no shared input between them.</p>
+        <div id="director-idea-details" class="idea-summary-box"></div>
+        <button class="btn-primary" onclick="triggerPreProduction()">Run Pre-Production</button>
+      </div>
+      <div id="pp-state-generating" class="strategist-panel" style="display:none;">
+        <span class="panel-badge">Pre-Production · Running</span>
+        <h2 class="panel-title">Science &amp; Recipe</h2>
+        <p class="panel-sub">Both agents are running in parallel. This usually takes 20–40 seconds.</p>
+        <div class="gen-timeline" id="pp-timeline"></div>
+      </div>
+      <div id="pp-state-output" style="display:none;">
+        <div style="text-align:center;margin-bottom:24px;">
+          <span class="panel-badge">Pre-Production · Complete</span>
+          <h2 style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:300;color:var(--text-hi);margin:12px 0 4px;">Science &amp; Recipe Briefs</h2>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;">
+          <div class="pipeline-output-card">
+            <div class="pipeline-card-header">
+              <span class="pipeline-card-label">Science Developer</span>
+              <div style="display:flex;gap:4px;align-items:center;">
+                <button class="btn-copy" onclick="copyFromPre('pp-science-raw',this)" title="Copy">⎘ Copy</button>
+                <button class="btn-edit-toggle" id="edit-toggle-science" onclick="toggleEdit('science','pp-science-raw','pp-science-edit',this)" title="Edit">✎ Edit</button>
+                <button class="btn-undo" id="undo-science" onclick="undoScience()" title="Undo last regeneration">↩ Undo</button>
+                <button class="btn-regen" onclick="regenScience(this)">↺ Regenerate</button>
+              </div>
+            </div>
+            <pre class="pipeline-raw" id="pp-science-raw"></pre>
+            <textarea class="edit-textarea" id="pp-science-edit" onblur="saveEdit('science','pp-science-raw','pp-science-edit','edit-toggle-science')"></textarea>
+          </div>
+          <div class="pipeline-output-card">
+            <div class="pipeline-card-header">
+              <span class="pipeline-card-label">Recipe Architect</span>
+              <div style="display:flex;gap:4px;align-items:center;">
+                <button class="btn-copy" onclick="copyFromPre('pp-recipe-raw',this)" title="Copy">⎘ Copy</button>
+                <button class="btn-edit-toggle" id="edit-toggle-recipe" onclick="toggleEdit('recipe','pp-recipe-raw','pp-recipe-edit',this)" title="Edit">✎ Edit</button>
+                <button class="btn-undo" id="undo-recipe" onclick="undoRecipe()" title="Undo last regeneration">↩ Undo</button>
+                <button class="btn-regen" onclick="regenRecipe(this)">↺ Regenerate</button>
+              </div>
+            </div>
+            <pre class="pipeline-raw" id="pp-recipe-raw"></pre>
+            <textarea class="edit-textarea" id="pp-recipe-edit" onblur="saveEdit('recipe','pp-recipe-raw','pp-recipe-edit','edit-toggle-recipe')"></textarea>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:center;gap:12px;">
+          <button class="btn-ghost" onclick="resetPreProduction()">↺ Regenerate Both</button>
+          <button class="btn-primary" onclick="proceedToContinuity()">Continue →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── CONTINUITY MANAGER ─────────────────────────── -->
+    <div id="view-continuity" class="view-pane">
+      <div id="cont-state-ready" class="strategist-panel">
+        <span class="panel-badge">Continuity Manager · Ready</span>
+        <h2 class="panel-title">Continuity Manager</h2>
+        <p class="panel-sub">Locks down every visual element — bottles, glasses, tools, surfaces — so all generated media is consistent.</p>
+        <button class="btn-primary" onclick="triggerContinuity()">Generate Continuity Brief</button>
+      </div>
+      <div id="cont-state-generating" class="strategist-panel" style="display:none;">
+        <span class="panel-badge">Continuity Manager · Running</span>
+        <h2 class="panel-title">Building Props List</h2>
+        <p class="panel-sub">Analysing science and recipe to define every visual element.</p>
+        <div class="gen-timeline" id="cont-timeline"></div>
+      </div>
+      <div id="cont-state-output" style="display:none;">
+        <div style="text-align:center;margin-bottom:24px;">
+          <span class="panel-badge">Continuity Manager · Complete</span>
+          <h2 style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:300;color:var(--text-hi);margin:12px 0 4px;">Visual Continuity Brief</h2>
+        </div>
+        <div class="pipeline-output-card" style="margin-bottom:20px;">
+          <div class="pipeline-card-header">
+            <span class="pipeline-card-label">Props &amp; Continuity</span>
+            <div style="display:flex;gap:4px;align-items:center;">
+              <button class="btn-copy" onclick="copyContinuityJson(this)">⎘ Copy JSON</button>
+              <button class="btn-undo" id="undo-cont" onclick="undoContinuity()">↩ Undo</button>
+            </div>
+          </div>
+          <div id="cont-props-display"></div>
+        </div>
+        <div style="display:flex;justify-content:center;gap:12px;">
+          <button class="btn-ghost" onclick="resetContinuity()">↺ Regenerate</button>
+          <button class="btn-primary" onclick="proceedToStoryboard()">Continue →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── DIRECTOR STORYBOARD ────────────────────────── -->
+    <div id="view-storyboard" class="view-pane">
+      <div id="sb-state-ready" class="strategist-panel">
+        <span class="panel-badge">Director Agent · Ready</span>
+        <h2 class="panel-title">Director Storyboard</h2>
+        <p class="panel-sub">Director synthesises all upstream briefs into a phase-by-phase production plan.</p>
+        <button class="btn-primary" onclick="triggerStoryboard()">Generate Storyboard</button>
+      </div>
+      <div id="sb-state-generating" class="strategist-panel" style="display:none;">
+        <span class="panel-badge">Director Agent · Running</span>
+        <h2 class="panel-title">Building Storyboard</h2>
+        <p class="panel-sub">Director is synthesising science, recipe, and continuity into the production plan.</p>
+        <div class="gen-timeline" id="sb-timeline"></div>
+      </div>
+      <div id="sb-state-output" style="display:none;">
+        <div style="text-align:center;margin-bottom:24px;">
+          <span class="panel-badge">Director Agent · Complete</span>
+          <h2 style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:300;color:var(--text-hi);margin:12px 0 4px;">Production Storyboard</h2>
+        </div>
+        <div class="pipeline-output-card" style="margin-bottom:20px;">
+          <div class="pipeline-card-header">
+            <span class="pipeline-card-label">Director Brief</span>
+            <div style="display:flex;gap:4px;align-items:center;">
+              <button class="btn-copy" onclick="copyFromPre('sb-raw',this)">⎘ Copy</button>
+              <button class="btn-edit-toggle" id="edit-toggle-sb" onclick="toggleEdit('sb','sb-raw','sb-edit',this)">✎ Edit</button>
+              <button class="btn-undo" id="undo-sb" onclick="undoStoryboard()">↩ Undo</button>
+            </div>
+          </div>
+          <pre class="pipeline-raw" id="sb-raw"></pre>
+          <textarea class="edit-textarea" id="sb-edit" onblur="saveEdit('sb','sb-raw','sb-edit','edit-toggle-sb')"></textarea>
+        </div>
+        <div style="display:flex;justify-content:center;gap:12px;">
+          <button class="btn-ghost" onclick="resetStoryboard()">↺ Regenerate</button>
+          <button class="btn-primary" onclick="proceedToScenes()">Continue →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SCENE CREATOR ──────────────────────────────── -->
+    <div id="view-scenes" class="view-pane">
+      <div id="sc-state-ready" class="strategist-panel">
+        <span class="panel-badge">Scene Creator · Ready</span>
+        <h2 class="panel-title">Scene Creator</h2>
+        <p class="panel-sub">Breaks each storyboard phase into individual clips with IDEOGRAM, KLING, and VOICEOVER prompts.</p>
+        <button class="btn-primary" onclick="triggerScenes()">Generate Scene Breakdown</button>
+      </div>
+      <div id="sc-state-generating" class="strategist-panel" style="display:none;">
+        <span class="panel-badge">Scene Creator · Running</span>
+        <h2 class="panel-title">Building Clips</h2>
+        <p class="panel-sub">Scene Creator is writing generation prompts for every clip. This may take up to 60 seconds.</p>
+        <div class="gen-timeline" id="sc-timeline"></div>
+      </div>
+      <div id="sc-state-output" style="display:none;">
+        <div style="text-align:center;margin-bottom:28px;">
+          <span class="panel-badge">Scene Creator · Complete</span>
+          <h2 style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:300;color:var(--text-hi);margin:12px 0 4px;" id="sc-output-title"></h2>
+        </div>
+        <div id="sc-phases"></div>
+        <div style="display:flex;justify-content:center;gap:12px;margin-top:24px;flex-wrap:wrap;">
+          <button class="btn-ghost" onclick="resetScenes()">↺ Regenerate All</button>
+          <button class="btn-ghost" onclick="refineScenes(this)" title="Runs automatically after every generation. Click to run the QA pass again: fixes cross-clip consistency, removes clutter, adds missing process shots, and adds a check note to every clip">🔍 Review &amp; Refine (again)</button>
+          <button class="btn-ghost" onclick="openScriptView()">📜 Full Script</button>
+          <button class="btn-ghost" onclick="exportProtocol()">⬇ Export Protocol</button>
+          <button class="btn-primary" onclick="openUploadWarning()">Proceed to Upload →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── UPLOAD PACKAGER ──────────────────────────── -->
+    <div id="view-upload" class="view-pane">
+      <div id="up-state-ready" class="strategist-panel">
+        <span class="panel-badge">Upload Packager · Ready</span>
+        <h2 class="panel-title">Upload Packager</h2>
+        <p class="panel-sub">Generate YouTube title options, description, pinned comments, and a publish checklist for this protocol.</p>
+        <button class="btn-primary" onclick="triggerUploadPackager()">Generate Upload Pack</button>
+      </div>
+      <div id="up-state-generating" class="strategist-panel" style="display:none;">
+        <span class="panel-badge">Upload Packager · Running</span>
+        <h2 class="panel-title">Building Upload Pack</h2>
+        <p class="panel-sub">Generating title options, description, comments, and checklist. This may take up to 45 seconds.</p>
+        <div class="gen-timeline" id="up-timeline"></div>
+      </div>
+      <div id="up-state-output" style="display:none;">
+        <div style="text-align:center;margin-bottom:28px;">
+          <span class="panel-badge">Upload Packager · Complete</span>
+          <h2 style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:300;color:var(--text-hi);margin:12px 0 4px;" id="up-output-title"></h2>
+        </div>
+
+        <!-- Title Options -->
+        <div id="up-title-options"></div>
+
+        <!-- On-screen hook text -->
+        <div class="pipeline-card" id="up-hooktext-card" style="margin-top:16px;display:none;">
+          <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-lo);margin-bottom:10px;">On-Screen Hook Text <span style="color:var(--text-lo);">· first 1–2 seconds</span></div>
+          <div id="up-hooktext"></div>
+        </div>
+
+        <!-- Description -->
+        <div class="pipeline-card" style="margin-top:20px;">
+          <div class="clip-section-header" style="margin-bottom:8px;">
+            <span class="section-label" style="font-size:10px;letter-spacing:.12em;color:var(--text-lo);">DESCRIPTION</span>
+            <button class="btn-copy" onclick="copyFromPre('up-desc-raw',this)">⎘ Copy</button>
+          </div>
+          <pre id="up-desc-raw" class="pipeline-raw" style="white-space:pre-wrap;font-size:12px;color:var(--text-hi);line-height:1.7;"></pre>
+          <p id="up-desc-rationale" style="margin-top:8px;font-size:11px;color:var(--text-lo);font-style:italic;"></p>
+        </div>
+
+        <!-- Pinned Comment -->
+        <div class="pipeline-card" style="margin-top:16px;">
+          <div class="clip-section-header" style="margin-bottom:8px;">
+            <span class="section-label" style="font-size:10px;letter-spacing:.12em;color:var(--text-lo);">PINNED COMMENT <span style="color:var(--green);margin-left:6px;">★ POST IMMEDIATELY</span></span>
+            <button class="btn-copy" onclick="copyFromPre('up-pinned-text',this)">⎘ Copy</button>
+          </div>
+          <pre id="up-pinned-text" class="pipeline-raw" style="white-space:pre-wrap;font-size:13px;color:var(--text-hi);line-height:1.6;"></pre>
+          <p id="up-pinned-rationale" style="margin-top:8px;font-size:11px;color:var(--text-lo);font-style:italic;"></p>
+        </div>
+
+        <!-- Second Comment -->
+        <div class="pipeline-card" style="margin-top:16px;">
+          <div class="clip-section-header" style="margin-bottom:8px;">
+            <span class="section-label" style="font-size:10px;letter-spacing:.12em;color:var(--text-lo);">SECOND COMMENT <span style="color:var(--text-lo);margin-left:6px;">POST 10 MINS AFTER UPLOAD</span></span>
+            <button class="btn-copy" onclick="copyFromPre('up-second-text',this)">⎘ Copy</button>
+          </div>
+          <pre id="up-second-text" class="pipeline-raw" style="white-space:pre-wrap;font-size:13px;color:var(--text-hi);line-height:1.6;"></pre>
+          <p id="up-second-rationale" style="margin-top:8px;font-size:11px;color:var(--text-lo);font-style:italic;"></p>
+        </div>
+
+        <!-- FAQ Replies -->
+        <div class="pipeline-card" id="up-faq-card" style="margin-top:16px;display:none;">
+          <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-lo);margin-bottom:14px;">FAQ Replies <span style="color:var(--text-lo);">· paste back to drive engagement</span></div>
+          <div id="up-faq"></div>
+        </div>
+
+        <!-- Checklist -->
+        <div class="pipeline-card" style="margin-top:16px;">
+          <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-lo);margin-bottom:14px;">UPLOAD SETTINGS CHECKLIST</div>
+          <div id="up-checklist"></div>
+        </div>
+
+        <!-- Platform captions (bottom) -->
+        <div class="pipeline-card" id="up-platform-card" style="margin-top:16px;display:none;">
+          <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-lo);margin-bottom:14px;">Per-Platform Captions</div>
+          <div id="up-platform"></div>
+        </div>
+
+        <!-- Actions -->
+        <div style="display:flex;justify-content:center;gap:12px;margin-top:24px;flex-wrap:wrap;">
+          <button class="btn-ghost" id="undo-upload" style="display:none;" onclick="undoUpload()">↩ Undo</button>
+          <button class="btn-ghost" onclick="regenUpload(this)">↺ Regenerate</button>
+          <button class="btn-ghost" onclick="exportProtocol()">⬇ Export MD File</button>
+          <button class="btn-primary" onclick="saveProtocolMd(this)" title="Save the protocol .md into the protocols folder and archive this idea">💾 Save MD File</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <footer>
+    <div style="display: flex; align-items: center; width: 100%; justify-content: space-between;">
+      <div id="footer-nav-container"></div>
+      <span>POV Cocktail AI · Local Build v0.4</span>
+    </div>
+  </footer>
+</div>
+
+<!-- ── LOG VIDEO MODAL ──────────────────────────────── -->
+<div class="modal-bg" id="dbModal" onclick="handleModalBg(event, 'dbModal')">
+  <div class="modal">
+    <div class="modal-title">Log Complete Video</div>
+    <div class="modal-sub">Append a finalized production build directly to your records.</div>
+    <div class="field">
+      <label>Protocol Number</label>
+      <input type="text" id="db-protocol_id" placeholder="e.g. 001, 002, 003...">
+    </div>
+    <div class="field">
+      <label>Video Title</label>
+      <input type="text" id="db-title" placeholder="e.g. Negroni — Smoky Edition">
+    </div>
+    <div class="field">
+      <label>Target Cocktail / Context</label>
+      <input type="text" id="db-cocktail" placeholder="e.g. Negroni">
+    </div>
+    <div class="field">
+      <label>Date Created</label>
+      <input type="date" id="db-date">
+    </div>
+    <div class="field">
+      <label>Video Style</label>
+      <select id="db-style">
+        <option value="">— Select style —</option>
+        <option value="bar">Bar / Classic</option>
+        <option value="science">Science / Lab</option>
+        <option value="comparison">Head-to-Head</option>
+        <option value="mythbusting">Myth-Busting</option>
+        <option value="historical">Historical Dive</option>
+        <option value="challenge">Challenge</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Strategic Performance Notes</label>
+      <textarea id="db-notes" rows="3" placeholder="Retention dips, CTR corrections, aesthetic variables..." style="resize:none;"></textarea>
+    </div>
+    <div class="modal-row">
+      <button class="btn-primary" style="padding:12px;" onclick="saveDbEntry()">Submit Form</button>
+      <button class="btn-ghost" onclick="closeModal('dbModal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── DYNAMIC LIST MODAL ───────────────────────────── -->
+<div class="modal-bg" id="listModal" onclick="handleModalBg(event, 'listModal')">
+  <div class="modal">
+    <div class="modal-title" id="listModalTitle">Select Item</div>
+    <div class="modal-sub" id="listModalSub">Choose an entry to feed forward into the orchestrator.</div>
+    <div class="db-list" id="listContainer"></div>
+    <div class="modal-row">
+      <button class="btn-ghost" onclick="closeModal('listModal')" style="flex:1;">Close Panel</button>
+      <button class="btn-ghost" id="btn-clear-ideas" onclick="confirmClearIdeas()"
+        style="flex:1; border-color:rgba(224,90,79,0.35); color:var(--red);">
+        Clear Existing Ideas
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── VOICEOVER SCRIPT MODAL ──────────────────────── -->
+<div class="modal-bg" id="scriptModal" onclick="handleModalBg(event,'scriptModal')">
+  <div class="modal" style="max-width:680px;max-height:82vh;display:flex;flex-direction:column;">
+    <div class="modal-title">Full Voiceover Script</div>
+    <div class="modal-sub">All voiceover lines assembled in scene order.</div>
+    <div id="script-content" style="flex:1;overflow-y:auto;margin:16px 0;padding-right:4px;"></div>
+    <div class="modal-row">
+      <button class="btn-primary" style="padding:10px 20px;" onclick="copyScript(this)">Copy All</button>
+      <button class="btn-ghost" onclick="closeModal('scriptModal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── NOTES MODAL ──────────────────────────────────── -->
+<div class="modal-bg" id="notesModal" onclick="handleModalBg(event, 'notesModal')">
+  <div class="modal">
+    <div class="modal-title">Update Protocol Notes</div>
+    <div class="modal-sub">Append or rewrite strategic insights for an existing video protocol.</div>
+    <div class="field">
+      <label>Protocol Number</label>
+      <input type="text" id="notes-protocol_id" placeholder="e.g. 1">
+    </div>
+    <div class="field">
+      <label>Update Type</label>
+      <select id="notes-type">
+        <option value="append">Append to existing notes</option>
+        <option value="rewrite">Overwrite notes entirely</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>New Notes</label>
+      <textarea id="notes-content" rows="4" placeholder="Log new performance metrics, CTR shifts, etc..." style="resize:none;"></textarea>
+    </div>
+    <div class="modal-row">
+      <button class="btn-primary" style="padding:12px;" onclick="submitNotes()">Save Notes</button>
+      <button class="btn-ghost" onclick="closeModal('notesModal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── IDEA OPTIONS MODAL ───────────────────────────── -->
+<div class="modal-bg" id="ideaOptionModal" onclick="handleModalBg(event, 'ideaOptionModal')">
+  <div class="modal">
+    <div class="modal-title" id="idea-option-title">Idea Title</div>
+    <div class="modal-sub" id="idea-option-cocktail" style="margin-bottom:16px;"></div>
+    <div class="idea-full-text" id="idea-option-text"></div>
+    <div class="option-btns">
+      <button class="btn-primary" onclick="developIdea()">⚡ Develop Now</button>
+      <button class="btn-gold-ghost" id="btn-save-for-later" onclick="saveIdeaForLater()">🔖 Save for Later</button>
+    </div>
+    <span class="modal-cancel" onclick="closeIdeaOptions()">Cancel</span>
+  </div>
+</div>
+
+<!-- ── UPLOAD WARNING MODAL ──────────────────────── -->
+<div class="modal-bg" id="uploadWarningModal" onclick="handleModalBg(event,'uploadWarningModal')">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-title">Proceed to Upload Pack?</div>
+    <div class="modal-sub" style="line-height:1.7;">
+      The Upload Packager will generate your YouTube title, description, pinned comments, and publish checklist.<br><br>
+      Your pipeline progress is already saved — you can return to the Scene Creator at any time via Resume Session.
+    </div>
+    <div class="modal-row" style="margin-top:20px;">
+      <button class="btn-ghost" onclick="closeModal('uploadWarningModal')" style="flex:1;">← Go Back</button>
+      <button class="btn-primary" onclick="closeModal('uploadWarningModal');proceedToUpload();" style="flex:1;">Generate Upload Pack →</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ── DEEP VIEWS (hero hidden on these) ───────────────
+  const DEEP_VIEWS = [
+    'view-strategist-execution',
+    'view-generating',
+    'view-ideas',
+    'view-director-agent',
+    'view-continuity',
+    'view-storyboard',
+    'view-scenes',
+    'view-upload'
+  ];
+
+  // ── VIEW STACK ──────────────────────────────────────
+  let viewStack = [{ id: 'view-home', context: 'Studio Control' }];
+
+  // ── PIPELINE STATE ──────────────────────────────────
+  let currentIdeas        = [];
+  // Short-lived brainstorm memory: the last few batches of ideas the strategist
+  // produced *this session*, fed back on Regenerate as a "don't repeat these"
+  // list. Unlike currentIdeas it survives Regenerate; it is cleared only when an
+  // idea is sent to Develop Now. Trimmed to the last GEN_SESSION_BATCH_LIMIT
+  // batches so old ideas never leak in.
+  let genSessionBatches   = [];
+  const GEN_SESSION_BATCH_LIMIT = 3;
+  let selectedIdea        = null;
+  let pipelineAborted     = false;
+  let _ideaFromExistingDb = false;   // true when idea came from the saved ideas list
+  let currentSessionId    = null;    // tracks the active session across saves
+  let selectedStyle       = 'bar';   // style chosen on the style selector screen
+
+  // ── TIMELINE CONFIG ─────────────────────────────────
+  const TIMELINE_STEPS = [
+    { id: 'tl-1', label: 'Pipeline initialised',     desc: 'Request confirmed and pipeline engaged.' },
+    { id: 'tl-2', label: 'Database retrieved',        desc: 'Historical video context loaded.' },
+    { id: 'tl-3', label: 'Prompt constructed',        desc: 'Strategy context assembled for Gemini.' },
+    { id: 'tl-4', label: 'Gemini API request',        desc: 'Awaiting response — auto-retrying up to 3× if needed.' },
+    { id: 'tl-5', label: 'Response received',         desc: 'Gemini returned data successfully.' },
+    { id: 'tl-6', label: 'Parsing idea structures',   desc: 'Extracting and formatting idea fields.' },
+    { id: 'tl-7', label: 'Ideas ready',               desc: 'All three protocol ideas prepared.' }
+  ];
+
+
+  // ── NAVIGATION ──────────────────────────────────────
+
+  function switchView(viewId, contextText = 'Studio Control') {
+    document.querySelectorAll('.view-pane').forEach(v => v.classList.remove('active-view'));
+    const target = document.getElementById(viewId);
+    if (target) target.classList.add('active-view');
+
+    document.getElementById('nav-context-text').textContent = contextText;
+
+    document.getElementById('main-hero').style.display =
+      DEEP_VIEWS.includes(viewId) ? 'none' : 'block';
+
+    if (viewStack[viewStack.length - 1].id !== viewId) {
+      viewStack.push({ id: viewId, context: contextText });
+    }
+
+    renderNavigationUI();
+  }
+
+  function goBack() {
+    if (viewStack.length <= 1) return;
+
+    const currentId = viewStack[viewStack.length - 1].id;
+    // Abort creative strategist
+    if (currentId === 'view-generating') pipelineAborted = true;
+    // Cancel any in-flight pipeline agents
+    cancelCurrentPipeline();
+    _abortController = null;
+
+    // From the upload pack, back always returns to the scene creator with its clips.
+    if (currentId === 'view-upload') {
+      renderScenesOutput(scenesOutput || []);   // also sets the 'sc' output state
+      viewStack.pop();                            // drop view-upload
+      if (viewStack[viewStack.length - 1].id !== 'view-scenes') {
+        viewStack.push({ id: 'view-scenes', context: 'Scene Creator' });
+      }
+      document.querySelectorAll('.view-pane').forEach(v => v.classList.remove('active-view'));
+      document.getElementById('view-scenes').classList.add('active-view');
+      document.getElementById('nav-context-text').textContent = 'Scene Creator';
+      document.getElementById('main-hero').style.display =
+        DEEP_VIEWS.includes('view-scenes') ? 'none' : 'block';
+      renderNavigationUI();
+      return;
+    }
+
+    viewStack.pop();
+    const prev = viewStack[viewStack.length - 1];
+
+    document.querySelectorAll('.view-pane').forEach(v => v.classList.remove('active-view'));
+    const target = document.getElementById(prev.id);
+    if (target) target.classList.add('active-view');
+
+    document.getElementById('nav-context-text').textContent = prev.context;
+
+    document.getElementById('main-hero').style.display =
+      DEEP_VIEWS.includes(prev.id) ? 'none' : 'block';
+
+    renderNavigationUI();
+  }
+
+  function renderNavigationUI() {
+    const container = document.getElementById('footer-nav-container');
+    if (viewStack[viewStack.length - 1].id === 'view-home') {
+      container.innerHTML = '';
+    } else {
+      container.innerHTML = `<a class="back-link" onclick="goBack()">← Back to previous</a>`;
+    }
+  }
+
+  function goHome() {
+    cancelCurrentPipeline();
+    _abortController = null;
+    viewStack = [{ id: 'view-home', context: 'Studio Control' }];
+    document.querySelectorAll('.view-pane').forEach(v => v.classList.remove('active-view'));
+    const home = document.getElementById('view-home');
+    if (home) home.classList.add('active-view');
+    document.getElementById('nav-context-text').textContent = 'Studio Control';
+    document.getElementById('main-hero').style.display = 'block';
+    renderNavigationUI();
+  }
+
+
+  // ── DATABASE FORM ────────────────────────────────────
+
+  function openDatabaseForm() {
+    fetch('/api/next_protocol_id')
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById('db-protocol_id').value = String(data.protocol_id).padStart(3, '0');
+        document.getElementById('dbModal').classList.add('open');
+      })
+      .catch(() => showToast('Failed to load next protocol ID.'));
+  }
+
+  function openVideoDatabase() {
+    switchView('view-video-database', 'Historical Records');
+    const container = document.getElementById('videoDatabaseContainer');
+    container.innerHTML = '<div style="color:var(--text-mid);text-align:center;padding:20px;">Reading production records...</div>';
+
+    fetch('/api/videos')
+      .then(res => res.json())
+      .then(data => {
+        container.innerHTML = '';
+        if (!data || data.length === 0) {
+          container.innerHTML = '<div style="color:var(--text-mid);text-align:center;padding:20px;">No historical data entries found.</div>';
+          return;
+        }
+        data.forEach(item => {
+          const div = document.createElement('div');
+          div.className = 'db-list-item';
+          div.style.cursor = 'default';
+          div.style.gap = '10px';
+          div.style.alignItems = 'flex-start';
+
+          const titleText  = item.title || 'Untitled Protocol';
+          const metaText   = `Protocol #${item.protocol_id || '???'} · ${item.cocktail || 'N/A'} · ${item.date_created || 'Unknown'}`;
+          const noteText   = item.notes
+            ? `<div style="font-size:12px;color:var(--text-mid);border-top:1px solid var(--border);margin-top:8px;padding-top:6px;font-style:italic;">"${escapeHtml(item.notes)}"</div>`
+            : '';
+          const rawId      = item.id || parseInt(item.protocol_id, 10);
+          const styleLabel = { bar:'Bar', science:'Science', comparison:'Head-to-Head', mythbusting:'Myth-Busting', historical:'Historical Dive', challenge:'Challenge' }[item.style] || '';
+          const styleBadge = styleLabel ? `<span style="font-size:9px;letter-spacing:.08em;padding:2px 6px;border-radius:4px;background:var(--bg-raised);border:1px solid var(--border);color:var(--text-lo);margin-left:8px;">${escapeHtml(styleLabel)}</span>` : '';
+          const r          = item.rating || 0;
+          const stars      = [2,4,6,8,10].map(v =>
+            `<button class="star-btn ${r >= v ? 'lit' : ''}" onclick="rateVideo(${rawId},${v},this)">★</button>`
+          ).join('');
+          const ratingLabel = r ? `${r}/10` : 'Rate';
+
+          div.innerHTML = `
+            <div style="flex:1;min-width:0;">
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;">
+                <div class="list-item-title archive-open" style="font-size:14px;color:var(--gold-pale);cursor:pointer;" title="Open the saved protocol archive">${escapeHtml(titleText)}${styleBadge}</div>
+                <div style="font-size:11px;color:var(--text-lo);font-weight:600;">LOGGED</div>
+              </div>
+              <div class="list-item-meta">${escapeHtml(metaText)}</div>
+              <div class="rating-row">
+                ${stars}
+                <span style="font-size:10px;color:var(--text-lo);margin-left:4px;">${ratingLabel}</span>
+              </div>
+              ${noteText}
+            </div>
+            <button class="btn-delete-row" title="Delete record" style="margin-top:2px;">✕</button>
+          `;
+
+          const openEl = div.querySelector('.archive-open');
+          if (openEl) openEl.onclick = () => openArchiveViewer(titleText);
+
+          div.querySelector('.btn-delete-row').onclick = async (e) => {
+            const btn = e.currentTarget;
+            if (btn.dataset.confirm !== 'true') {
+              btn.dataset.confirm = 'true';
+              btn.textContent = '?';
+              btn.style.borderColor = 'var(--red)';
+              btn.style.color = 'var(--red)';
+              setTimeout(() => {
+                btn.dataset.confirm = '';
+                btn.textContent = '✕';
+                btn.style.borderColor = '';
+                btn.style.color = '';
+              }, 2500);
+              return;
+            }
+            try {
+              const res = await fetch(`/api/delete-video/${rawId}`, { method: 'DELETE' });
+              const d = await res.json();
+              if (d.success) {
+                div.remove();
+                if (!container.querySelector('.db-list-item')) {
+                  container.innerHTML = '<div style="color:var(--text-mid);text-align:center;padding:20px;">No historical data entries found.</div>';
+                }
+              } else { showToast('Delete failed.'); }
+            } catch { showToast('Database connection error.'); }
+          };
+
+          container.appendChild(div);
+        });
+      })
+      .catch(() => {
+        container.innerHTML = '<div style="color:var(--red);text-align:center;padding:20px;">Failed to stream data metrics from database core.</div>';
+      });
+  }
+
+  function handleImageSelection() {
+    const input = document.getElementById('imageUpload');
+    if (input.files.length > 0) {
+      const fileName = input.files[0].name;
+      navigateToStrategist(`Image Resource: ${fileName}`);
+      input.value = '';
+    }
+  }
+
+  function navigateToStrategist(contextLabel) {
+    document.getElementById('execution-badge').textContent = contextLabel;
+    document.getElementById('execution-sub').textContent = 'Select the type of video to generate — this steers the ideas toward a specific format and tone.';
+    switchView('view-strategist-execution', 'Creative Strategist View');
+    loadStyleStats();
+  }
+
+  function openDynamicList(endpoint, title, sub) {
+    document.getElementById('listModalTitle').textContent = title;
+    document.getElementById('listModalSub').textContent = sub;
+    const container = document.getElementById('listContainer');
+    container.innerHTML = '<div style="color:var(--text-mid);text-align:center;padding:20px;">Reading database clusters...</div>';
+    document.getElementById('listModal').classList.add('open');
+
+    fetch(endpoint)
+      .then(res => res.json())
+      .then(data => {
+        container.innerHTML = '';
+        if (data.length === 0) {
+          container.innerHTML = '<div style="color:var(--text-mid);text-align:center;padding:20px;">No matching records found.</div>';
+          return;
+        }
+        data.forEach(item => {
+          const div = document.createElement('div');
+          div.className = 'db-list-item';
+          div.style.gap = '10px';
+
+          const isIdea = item.idea_text !== undefined;
+
+          div.innerHTML = `
+            <div style="flex:1;min-width:0;cursor:pointer;" class="list-item-body">
+              <div class="list-item-title">${escapeHtml(item.title)}</div>
+              <div class="list-item-meta">${escapeHtml(item.desc)}</div>
+            </div>
+            ${isIdea ? '' : '<div style="color:var(--gold);font-size:16px;flex-shrink:0;">→</div>'}
+            ${isIdea ? `<button class="btn-delete-row" title="Delete idea" data-id="${item.id}">✕</button>` : ''}
+          `;
+
+          div.querySelector('.list-item-body').onclick = () => {
+            closeModal('listModal');
+            if (isIdea) {
+              _ideaFromExistingDb = true;
+              openIdeaOptions(item, -1);
+            } else {
+              navigateToStrategist(`Database Link: ${item.title}`);
+            }
+          };
+
+          if (isIdea) {
+            div.querySelector('.btn-delete-row').onclick = async (e) => {
+              e.stopPropagation();
+              const btn = e.currentTarget;
+              if (btn.dataset.confirm !== 'true') {
+                btn.dataset.confirm = 'true';
+                btn.textContent = '?';
+                btn.style.borderColor = 'var(--red)';
+                btn.style.color = 'var(--red)';
+                setTimeout(() => {
+                  btn.dataset.confirm = '';
+                  btn.textContent = '✕';
+                  btn.style.borderColor = '';
+                  btn.style.color = '';
+                }, 2500);
+                return;
+              }
+              try {
+                const res = await fetch(`/api/delete-working-idea/${item.id}`, { method: 'DELETE' });
+                const d = await res.json();
+                if (d.success) {
+                  div.remove();
+                  if (!container.querySelector('.db-list-item')) {
+                    container.innerHTML = '<div style="color:var(--text-mid);text-align:center;padding:20px;">No matching records found.</div>';
+                  }
+                } else { showToast('Delete failed.'); }
+              } catch { showToast('Database connection error.'); }
+            };
+          }
+
+          container.appendChild(div);
+        });
+      })
+      .catch(() => {
+        container.innerHTML = '<div style="color:var(--red);text-align:center;padding:20px;">Failed database resource stream read.</div>';
+      });
+  }
+
+  function saveDbEntry() {
+    const payload = {
+      protocol_id:  document.getElementById('db-protocol_id').value,
+      title:        document.getElementById('db-title').value,
+      cocktail:     document.getElementById('db-cocktail').value,
+      date_created: document.getElementById('db-date').value,
+      notes:        document.getElementById('db-notes').value,
+      style:        document.getElementById('db-style').value || null,
+    };
+
+    fetch('/api/videos', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payload)
+    })
+    .then(res => res.json())
+    .then(() => {
+      closeModal('dbModal');
+      showToast('Video metrics parsed and saved to local architecture ✓');
+      document.getElementById('db-title').value    = '';
+      document.getElementById('db-cocktail').value = '';
+      document.getElementById('db-notes').value    = '';
+      document.getElementById('db-style').value    = '';
+    })
+    .catch(() => showToast('Error sync tracking record.'));
+  }
+
+  async function rateVideo(protocolId, rating, clickedBtn) {
+    const row   = clickedBtn.closest('.rating-row');
+    const stars = row.querySelectorAll('.star-btn');
+    stars.forEach((s, i) => s.classList.toggle('lit', (i + 1) * 2 <= rating));
+    const label = row.querySelector('span');
+    if (label) label.textContent = `${rating}/10`;
+    try {
+      await fetch(`/api/rate-video/${protocolId}`, {
+        method:  'POST',
+        headers: {'Content-Type':'application/json'},
+        body:    JSON.stringify({ rating })
+      });
+      showToast(`Rating saved: ${rating}/10 ✓`);
+    } catch { showToast('Rating failed to save.'); }
+  }
+
+  function openUpdateNotesModal() {
+    document.getElementById('notes-protocol_id').value = '';
+    document.getElementById('notes-content').value     = '';
+    document.getElementById('notes-type').value        = 'append';
+    document.getElementById('notesModal').classList.add('open');
+  }
+
+  function submitNotes() {
+    const protocolId = document.getElementById('notes-protocol_id').value;
+    const notesType  = document.getElementById('notes-type').value;
+    const content    = document.getElementById('notes-content').value;
+
+    if (!protocolId || !content) {
+      showToast('Missing Protocol ID or Notes payload.');
+      return;
+    }
+
+    fetch('/api/update_notes', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ protocol_id: protocolId, notes: content, append: notesType === 'append' })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        closeModal('notesModal');
+        showToast('Notes synced with database core ✓');
+        openVideoDatabase();
+      } else {
+        showToast('Error: ' + (data.message || 'Protocol ID not found.'));
+      }
+    })
+    .catch(() => showToast('Database connection error.'));
+  }
+
+  function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+  function handleModalBg(e, id) { if (e.target === document.getElementById(id)) closeModal(id); }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2800);
+  }
+
+
+  // ── CREATIVE STRATEGIST PIPELINE ─────────────────────
+
+  function selectStyle(style) {
+    selectedStyle    = style;
+    pipelineAborted  = false;
+    _abortController = new AbortController();
+    switchView('view-generating', 'Creative Strategist · Running');
+    // Use the shared two-arg renderTimeline (the old no-arg version was being
+    // shadowed by it, so the steps never rendered).
+    renderTimeline('gen-timeline', TIMELINE_STEPS);
+    runCreativeStrategistPipeline();
+  }
+
+  function triggerAgentExecution() {
+    // Legacy path — called from btn-continue after saving a new idea; goes straight to pre-production
+    goToDirectorAgent();
+  }
+
+  function setStep(id, status, desc = null) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.className = `tl-step ${status}`;
+    if (desc !== null) {
+      const descEl = document.getElementById(`${id}-desc`);
+      if (descEl) descEl.textContent = desc;
+    }
+  }
+
+  function delay(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+
+  // ── LIVE PROGRESS + ERROR HELPERS ───────────────────
+  // Friendly copy per backend error_code (see _run_agent in main.py).
+  const ERROR_COPY = {
+    timeout:      { title: 'Request timed out',   hint: 'Gemini never responded in time. This is usually temporary — go ← Back and try again.' },
+    agent_failed: { title: 'Agent crashed',        hint: 'The agent hit an error mid-run. The technical detail is below.' },
+    empty_output: { title: 'Empty response',       hint: 'Gemini returned nothing usable. Try regenerating.' },
+    parse_failed: { title: 'Couldn’t read ideas',  hint: 'Gemini replied, but not in the expected format. Try regenerating.' },
+    not_found:    { title: 'Agent script missing', hint: 'The agent file wasn’t found on the server.' },
+    cancelled:    { title: 'Cancelled',            hint: 'This run was cancelled.' },
+    exception:    { title: 'Server error',         hint: 'Something went wrong on the server.' },
+    network:      { title: 'Connection lost',      hint: 'Couldn’t reach the server — check it’s still running.' },
+  };
+
+  // Normalise either a thrown backend payload {error, error_code, error_detail}
+  // or a JS Error (network/abort) into one shape.
+  function describeError(err) {
+    if (err instanceof Error) return { code: 'network', message: err.message, detail: '' };
+    return {
+      code:    err?.error_code   || 'exception',
+      message: err?.error        || 'Unknown error.',
+      detail:  err?.error_detail || '',
+    };
+  }
+
+  function renderErrorDetail(info) {
+    if (!info.detail) return '';
+    const id = 'errdetail-' + Math.random().toString(36).slice(2, 7);
+    return `<br><span style="font-size:11px;color:var(--text-lo);cursor:pointer;text-decoration:underline;"
+              onclick="const d=document.getElementById('${id}');d.style.display=d.style.display==='none'?'block':'none';">
+              ▸ Technical detail (${escapeHtml(info.code)})</span>
+            <pre id="${id}" style="display:none;margin-top:8px;text-align:left;background:var(--bg-deep);
+              border:1px solid var(--border);border-radius:6px;padding:10px;font-size:10px;color:var(--text-mid);
+              max-height:160px;overflow:auto;white-space:pre-wrap;">${escapeHtml(info.detail)}</pre>`;
+  }
+
+  // Flag a timeline step as failed with categorised copy. If badgeId/subId are
+  // given (the creative strategist panel) the hint + detail go there; otherwise
+  // the detail is appended under the step itself.
+  function showTimelineError(stepId, err, badgeId, subId) {
+    const info = describeError(err);
+    const copy = ERROR_COPY[info.code] || ERROR_COPY.exception;
+    setStep(stepId, 'error', `${copy.title}: ${info.message}`);
+    if (badgeId) { const b = document.getElementById(badgeId); if (b) b.textContent = `Pipeline Error · ${copy.title}`; }
+    if (subId) {
+      const s = document.getElementById(subId);
+      if (s) s.innerHTML = `${escapeHtml(copy.hint)}${renderErrorDetail(info)}`;
+    } else {
+      const descEl = document.getElementById(`${stepId}-desc`);
+      if (descEl && info.detail) descEl.innerHTML += renderErrorDetail(info);
+    }
+  }
+
+  // Poll /api/job-status while an agent runs; hand each new event to onEvent.
+  // Resolves when the job reports done or the signal aborts.
+  async function pollJobProgress(jobId, onEvent, signal, control) {
+    let seen = 0;
+    while (true) {
+      if (signal?.aborted || control?.stop) return;
+      let st;
+      try {
+        const r = await fetch(`/api/job-status/${jobId}`, { signal });
+        st = await r.json();
+      } catch (e) {
+        if (signal?.aborted || control?.stop) return;
+        await delay(800);
+        continue;   // transient — keep trying
+      }
+      if (st && Array.isArray(st.events)) {
+        for (; seen < st.events.length; seen++) {
+          try { onEvent(st.events[seen]); } catch (_) {}
+        }
+      }
+      if (st && st.done) return;
+      await delay(700);
+    }
+  }
+
+  // Maps creative-strategist agent stages onto timeline step ids.
+  const CS_STAGE_MAP = { context: 'tl-2', prompt: 'tl-3', gemini: 'tl-4' };
+
+  function applyCsEvent(evt) {
+    const stepId = CS_STAGE_MAP[evt.stage];
+    if (!stepId) return;
+    const status = evt.status === 'done'  ? 'done'
+                 : evt.status === 'retry' ? 'retry'
+                 : evt.status === 'error' ? 'error'
+                 : 'active';
+    setStep(stepId, status, evt.note || null);
+    // Light up "Response received" the moment Gemini confirms success.
+    if (evt.stage === 'gemini' && evt.status === 'done') {
+      setStep('tl-5', 'done', 'Response received from Gemini.');
+    }
+  }
+
+  async function runCreativeStrategistPipeline() {
+    // Step 1 — confirmed immediately; everything after is driven by real events.
+    setStep('tl-1', 'done', 'Request confirmed and pipeline engaged.');
+    setStep('tl-2', 'active', 'Connecting to agent…');
+    const subEl = document.getElementById('gen-confirm-msg');
+    if (subEl) subEl.textContent = 'Pipeline engaged. Launching Creative Strategist…';
+
+    const csJobId = _newJobId();
+    _activeJobIds.add(csJobId);
+    const signal = _abortController?.signal;
+
+    // Run the agent and stream its real progress at the same time.
+    const pollControl = { stop: false };
+    pollJobProgress(csJobId, applyCsEvent, signal, pollControl);
+
+    let data;
+    try {
+      const response = await fetch('/api/run-creative-strategist', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          style:  selectedStyle,
+          job_id: csJobId,
+          // Flatten the recent batches into a single avoid-list so the agent
+          // does not repeat ideas already shown this session.
+          avoid:  genSessionBatches.flat(),
+        }),
+        signal,
+      });
+      data = await response.json();
+      if (!data.success) throw data;   // throw the payload to keep code + detail
+    } catch (err) {
+      if (pipelineAborted || err?.name === 'AbortError') return;
+      showTimelineError('tl-4', err, 'gen-badge', 'gen-confirm-msg');
+      return;
+    } finally {
+      _activeJobIds.delete(csJobId);
+      pollControl.stop = true;   // stop the poller (fire-and-forget; never await)
+    }
+
+    if (pipelineAborted) return;
+
+    // Backfill the API steps in case the final poll was missed.
+    setStep('tl-4', 'done', 'Gemini responded successfully.');
+    setStep('tl-5', 'done', 'Response received and validated.');
+
+    // Parsing happens server-side; reflect it here.
+    setStep('tl-6', 'active', 'Extracting idea structures…');
+    currentIdeas = data.ideas || [];
+
+    // Remember this batch (title + cocktail only) so the next Regenerate avoids
+    // repeating it, then trim to the last few batches so old ideas drop out.
+    if (currentIdeas.length) {
+      genSessionBatches.push(currentIdeas.map(i => ({ title: i.title, cocktail: i.cocktail })));
+      if (genSessionBatches.length > GEN_SESSION_BATCH_LIMIT) {
+        genSessionBatches = genSessionBatches.slice(-GEN_SESSION_BATCH_LIMIT);
+      }
+    }
+    await delay(250);
+    if (pipelineAborted) return;
+    setStep('tl-6', 'done', `${currentIdeas.length} ideas extracted and structured.`);
+
+    setStep('tl-7', 'done', 'All ideas ready to display.');
+    await delay(450);
+    if (pipelineAborted) return;
+    displayIdeas();
+  }
+
+
+  // ── IDEAS VIEW ───────────────────────────────────────
+
+  function displayIdeas() {
+    const grid = document.getElementById('ideasGrid');
+    grid.innerHTML = '';
+    document.getElementById('btn-continue').style.display = 'none';
+    selectedIdea = null;
+
+    currentIdeas.forEach((idea, idx) => {
+      const card = document.createElement('div');
+      card.className = 'idea-card';
+      card.innerHTML = `
+        <div class="idea-num">Idea · 0${idx + 1}</div>
+        <div class="idea-title">${escapeHtml(idea.title || 'Untitled Protocol')}</div>
+        ${idea.cocktail ? `<div class="idea-cocktail">🍹 ${escapeHtml(idea.cocktail)}</div>` : ''}
+        <div class="idea-cta">Click to select →</div>
+      `;
+      card.onclick = () => openIdeaOptions(idea, idx);
+      grid.appendChild(card);
+    });
+
+    // Replace view-generating in stack so Back skips the loading screen
+    const genIdx = viewStack.findIndex(v => v.id === 'view-generating');
+    if (genIdx !== -1) viewStack.splice(genIdx, 1);
+
+    switchView('view-ideas', 'Creative Strategist · Ideas');
+  }
+
+  function openIdeaOptions(idea, idx) {
+    selectedIdea = idea;
+    document.getElementById('idea-option-title').textContent    = idea.title || 'Untitled Idea';
+    document.getElementById('idea-option-cocktail').textContent = idea.cocktail ? `🍹 ${idea.cocktail}` : '';
+    document.getElementById('idea-option-text').textContent     = idea.idea_text || '';
+    // Hide "Save for Later" if idea already comes from the saved ideas list
+    document.getElementById('btn-save-for-later').style.display = _ideaFromExistingDb ? 'none' : '';
+    document.getElementById('ideaOptionModal').classList.add('open');
+  }
+
+  function closeIdeaOptions() {
+    document.getElementById('ideaOptionModal').classList.remove('open');
+  }
+
+  async function developIdea() {
+    if (!selectedIdea) return;
+    closeIdeaOptions();
+
+    // Developing an idea ends the brainstorm session — wipe the generation
+    // memory so the next round of ideas starts fresh. (Save-for-later does not.)
+    genSessionBatches = [];
+
+    const fromDb = _ideaFromExistingDb;
+    _ideaFromExistingDb = false;
+
+    if (fromDb) {
+      // Idea is already in the DB — go straight to pre-production
+      await saveSession('idea_selected', selectedIdea, null);
+      goToDirectorAgent();
+      return;
+    }
+
+    try {
+      const res  = await fetch('/api/save-working-idea', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(selectedIdea)
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        showToast('⚡ Idea locked in as active protocol ✓');
+        await saveSession('idea_selected', selectedIdea, null);
+        document.getElementById('btn-continue').style.display = 'inline-flex';
+      } else {
+        showToast('Error: ' + (data.error || 'Failed to save idea.'));
+      }
+    } catch (e) {
+      showToast('Database connection error.');
+    }
+  }
+
+  async function saveIdeaForLater() {
+    if (!selectedIdea) return;
+    closeIdeaOptions();
+
+    try {
+      const res  = await fetch('/api/save-future-idea', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(selectedIdea)
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        showToast('🔖 Idea saved to future ideas library ✓');
+      } else {
+        showToast('Error: ' + (data.error || 'Failed to save idea.'));
+      }
+    } catch (e) {
+      showToast('Database connection error.');
+    }
+
+    // Stay on ideas view — no continue button shown for "save for later"
+    selectedIdea = null;
+  }
+
+  function regenerateIdeas() {
+    pipelineAborted = true;
+    currentIdeas    = [];
+    selectedIdea    = null;
+    selectedStyle   = 'bar';
+    document.getElementById('btn-continue').style.display = 'none';
+
+    // Trim stack back to view-strategist-execution
+    const stratIdx = viewStack.findIndex(v => v.id === 'view-strategist-execution');
+    if (stratIdx !== -1) {
+      viewStack = viewStack.slice(0, stratIdx + 1);
+    }
+
+    // Return to style selector
+    document.querySelectorAll('.view-pane').forEach(v => v.classList.remove('active-view'));
+    const target = document.getElementById('view-strategist-execution');
+    if (target) target.classList.add('active-view');
+    document.getElementById('nav-context-text').textContent = viewStack[viewStack.length - 1]?.context || 'Creative Strategist View';
+    document.getElementById('main-hero').style.display = 'none';
+    renderNavigationUI();
+  }
+
+
+  // ── PIPELINE STATE ───────────────────────────────────
+  let scienceOutput    = null;
+  let recipeOutput     = null;
+  let continuityOutput = null;
+  let storyboardOutput = null;
+  let scenesOutput     = null;
+  let scenesRaw        = '';
+  let scenesReviewed   = false;   // true once the mandatory Scene Reviewer pass has succeeded
+  let uploadOutput     = null;
+
+  // Version history (ephemeral — not persisted)
+  let scienceHistory    = [];
+  let recipeHistory     = [];
+  let continuityHistory = [];
+  let storyboardHistory = [];
+  let uploadHistory    = [];
+
+  // Cancellation
+  let _abortController = null;
+  let _activeJobIds    = new Set();
+
+  // ── SHARED PIPELINE HELPERS ───────────────────────────
+
+  function showPipelineState(prefix, state) {
+    ['ready','generating','output'].forEach(s => {
+      const el = document.getElementById(`${prefix}-state-${s}`);
+      if (el) el.style.display = s === state ? (state === 'output' ? 'block' : 'block') : 'none';
+    });
+  }
+
+  function renderTimeline(containerId, steps) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    el.innerHTML = steps.map(s => `
+      <div class="tl-step pending" id="${s.id}">
+        <div class="tl-dot"></div>
+        <div class="tl-content">
+          <div class="tl-label">${s.label}</div>
+          <div class="tl-desc" id="${s.id}-desc">${s.desc}</div>
+        </div>
+      </div>`).join('');
+  }
+
+  function _newJobId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+  function cancelCurrentPipeline() {
+    if (_abortController) { _abortController.abort(); _abortController = null; }
+    _activeJobIds.forEach(id => {
+      fetch(`/api/cancel-job/${id}`, { method: 'POST' }).catch(() => {});
+    });
+    _activeJobIds.clear();
+  }
+
+  async function callAgent(endpoint, payload, stepId, errorBadgeId) {
+    const jobId = _newJobId();
+    _activeJobIds.add(jobId);
+    if (!_abortController) _abortController = new AbortController();
+    const signal = _abortController.signal;
+
+    // Stream live progress into the active step's description. Stages aren't
+    // mapped per-agent here, so the latest note is shown on `stepId` directly —
+    // retries flip it red. (Lights up once an agent emits @@PROGRESS@@ markers.)
+    const pollControl = { stop: false };
+    pollJobProgress(jobId, (evt) => {
+      if (!evt || !evt.note) return;
+      const el = document.getElementById(stepId);
+      if (el && el.classList.contains('done')) return;
+      setStep(stepId, evt.status === 'retry' ? 'retry' : 'active', evt.note);
+    }, signal, pollControl);
+
+    let data;
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ ...payload, job_id: jobId }),
+        signal
+      });
+      data = await res.json();
+      if (!data.success) throw data;   // throw the payload to keep code + detail
+    } catch (err) {
+      if (err?.name === 'AbortError') return null;  // user navigated away — silent
+      showTimelineError(stepId, err, errorBadgeId, null);
+      return null;
+    } finally {
+      _activeJobIds.delete(jobId);
+      pollControl.stop = true;   // stop the poller (fire-and-forget; never await)
+    }
+    return data;
+  }
+
+  function ideaPayload() {
+    return {
+      title:     selectedIdea.title     || '',
+      cocktail:  selectedIdea.cocktail  || '',
+      idea_text: selectedIdea.idea_text || selectedIdea.summary || ''
+    };
+  }
+
+  // ── PRE-PRODUCTION (Science + Recipe) ────────────────
+
+  function goToDirectorAgent() {
+    if (!selectedIdea) return;
+    // Clear ephemeral history when entering a new pipeline run
+    scienceHistory = []; recipeHistory = []; continuityHistory = []; storyboardHistory = []; uploadHistory = [];
+    uploadOutput = null;
+    ['undo-science','undo-recipe','undo-cont','undo-sb','undo-upload'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+    const box = document.getElementById('director-idea-details');
+    if (box) box.innerHTML = `
+      <div class="summary-label">Active Protocol</div>
+      <div class="summary-title">${escapeHtml(selectedIdea.title || 'Untitled')}</div>
+      ${selectedIdea.cocktail ? `<div class="summary-meta">🍹 ${escapeHtml(selectedIdea.cocktail)}</div>` : ''}
+      <div class="summary-text">${escapeHtml(selectedIdea.summary || selectedIdea.idea_text?.substring(0, 300) || '')}</div>
+    `;
+    showPipelineState('pp', 'ready');
+    switchView('view-director-agent', 'Pre-Production');
+  }
+
+  async function triggerPreProduction() {
+    showPipelineState('pp', 'generating');
+    const steps = [
+      {id:'pp1', label:'Science Developer initialising', desc:'Preparing science brief prompt.'},
+      {id:'pp2', label:'Recipe Architect initialising',  desc:'Preparing recipe brief prompt.'},
+      {id:'pp3', label:'Gemini API — both agents',       desc:'Science first, then recipe built from it — auto-retrying up to 3× each.'},
+      {id:'pp4', label:'Briefs received',                desc:'Both outputs returned successfully.'},
+      {id:'pp5', label:'Pre-production complete',        desc:'Science and recipe briefs ready.'},
+    ];
+    renderTimeline('pp-timeline', steps);
+
+    await delay(300); setStep('pp1','done'); setStep('pp2','done');
+    await delay(300); setStep('pp3','active','Running Science Developer and Recipe Architect...');
+
+    const payload = ideaPayload();
+    // Science runs first; the recipe is built from it so the two briefs describe
+    // the same drink. They must be sequential, not parallel, for that reason.
+    const sciRes = await callAgent('/api/run-science-developer', payload, 'pp3');
+    if (!sciRes) { showPipelineState('pp','ready'); return; }
+    scienceOutput = sciRes.raw;
+    const recRes = await callAgent('/api/run-recipe-architect', { ...payload, science: scienceOutput }, 'pp3');
+
+    if (!recRes) { showPipelineState('pp','ready'); return; }
+
+    setStep('pp3','done'); await delay(200);
+    setStep('pp4','done'); await delay(200);
+
+    recipeOutput  = recRes.raw;
+
+    setStep('pp5','done'); await delay(400);
+    await saveSession('preproduction_complete', selectedIdea, null);
+    renderPreProductionOutput();
+  }
+
+  function renderPreProductionOutput() {
+    document.getElementById('pp-science-raw').textContent = scienceOutput || '';
+    document.getElementById('pp-recipe-raw').textContent  = recipeOutput  || '';
+    showPipelineState('pp','output');
+  }
+
+  async function regenScience(btn) {
+    if (scienceOutput) scienceHistory.push(scienceOutput);
+    btn.disabled = true; btn.textContent = 'Running...';
+    const data = await callAgent('/api/run-science-developer', ideaPayload(), null);
+    btn.disabled = false; btn.textContent = '↺ Regenerate';
+    if (!data) { scienceHistory.pop(); showToast('Science Developer failed.'); return; }
+    scienceOutput = data.raw;
+    document.getElementById('pp-science-raw').textContent = scienceOutput;
+    document.getElementById('undo-science').style.display = scienceHistory.length ? 'inline-flex' : 'none';
+    await saveSession('preproduction_complete', selectedIdea, null);
+  }
+
+  async function regenRecipe(btn) {
+    if (recipeOutput) recipeHistory.push(recipeOutput);
+    btn.disabled = true; btn.textContent = 'Running...';
+    const data = await callAgent('/api/run-recipe-architect', { ...ideaPayload(), science: scienceOutput || '' }, null);
+    btn.disabled = false; btn.textContent = '↺ Regenerate';
+    if (!data) { recipeHistory.pop(); showToast('Recipe Architect failed.'); return; }
+    recipeOutput = data.raw;
+    document.getElementById('pp-recipe-raw').textContent = recipeOutput;
+    document.getElementById('undo-recipe').style.display = recipeHistory.length ? 'inline-flex' : 'none';
+    await saveSession('preproduction_complete', selectedIdea, null);
+  }
+
+  function resetPreProduction() { showPipelineState('pp','ready'); }
+
+  async function proceedToContinuity() {
+    showPipelineState('cont','ready');
+    switchView('view-continuity','Continuity Manager');
+  }
+
+  // ── CONTINUITY MANAGER ────────────────────────────────
+
+  async function triggerContinuity() {
+    if (continuityOutput) continuityHistory.push(continuityOutput);
+    showPipelineState('cont','generating');
+    const steps = [
+      {id:'ct1', label:'Inputs assembled',         desc:'Idea, science, and recipe passed to Continuity Manager.'},
+      {id:'ct2', label:'Gemini API request',        desc:'Awaiting props document — auto-retrying up to 3× if needed.'},
+      {id:'ct3', label:'Continuity doc received',   desc:'JSON props document returned.'},
+      {id:'ct4', label:'Continuity brief ready',    desc:'All visual elements defined and locked.'},
+    ];
+    renderTimeline('cont-timeline', steps);
+
+    await delay(300); setStep('ct1','done');
+    await delay(200); setStep('ct2','active','Sending to Gemini...');
+
+    const data = await callAgent('/api/run-continuity-manager', {
+      ...ideaPayload(), science: scienceOutput || '', recipe: recipeOutput || ''
+    }, 'ct2');
+
+    if (!data) { showPipelineState('cont','ready'); return; }
+
+    setStep('ct2','done'); await delay(200);
+    setStep('ct3','done'); await delay(200);
+
+    continuityOutput = data.raw;  // always store full text so Parts 1, 2, 3 are passed downstream
+    if (data.warnings && data.warnings.length) {
+      console.warn('Continuity Manager output format warnings:', data.warnings);
+    }
+    setStep('ct4','done'); await delay(400);
+
+    document.getElementById('undo-cont').style.display = continuityHistory.length ? 'inline-flex' : 'none';
+    await saveSession('continuity_complete', selectedIdea, null);
+    renderContinuityOutput();
+  }
+
+  function renderContinuityOutput() {
+    const el = document.getElementById('cont-props-display');
+    if (!el) return;
+
+    // Always treat continuityOutput as raw text; legacy sessions may have stored a JSON object
+    const raw = (typeof continuityOutput === 'object' && continuityOutput !== null)
+      ? JSON.stringify(continuityOutput, null, 2)
+      : String(continuityOutput || '');
+
+    // Extract Part 2 JSON block
+    let obj = null;
+    const jsonMatch = raw.match(/\{[\s\S]+\}/);
+    if (jsonMatch) { try { obj = JSON.parse(jsonMatch[0]); } catch(e) { /* not valid JSON */ } }
+
+    // Extract Part 1 text (before the JSON / ```json block)
+    const part1Match = raw.match(/PART 1[\s\S]*?(?=PART 2|```json|\{)/i);
+    const part1Text = part1Match ? part1Match[0].trim() : '';
+
+    // Extract Part 3 text (Vessel State Machine)
+    const part3Match = raw.match(/PART 3[\s\S]*/i);
+    const part3Text = part3Match ? part3Match[0].trim() : '';
+
+    let html = '';
+
+    // Part 1: Environment Block + Hand Appearance Block
+    if (part1Text) {
+      html += `<div style="margin-bottom:16px;">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-lo);margin-bottom:8px;">Environment &amp; Hand Blocks</div>
+        <pre class="pipeline-raw" style="max-height:200px;">${escapeHtml(part1Text)}</pre>
+      </div>`;
+    }
+
+    // Part 2: Props JSON grid
+    if (obj) {
+      const skip = new Set(['consistency_rules','do_not_include','engagement_notes','colour_palette']);
+      const rows = Object.entries(obj)
+        .filter(([k]) => !skip.has(k))
+        .map(([k,v]) => {
+          const display = typeof v === 'object' && v
+            ? Object.entries(v).map(([sk,sv]) => `<span style="color:var(--gold-pale)">${escapeHtml(sk)}:</span> ${escapeHtml(String(sv||''))}`)
+                .join('<br>')
+            : escapeHtml(String(v||''));
+          return `<div class="prop-row"><div class="prop-key">${escapeHtml(k.replace(/_/g,' '))}</div><div class="prop-val">${display}</div></div>`;
+        }).join('');
+      const rules = (obj.consistency_rules||[]).map(r=>`<li style="font-size:11px;color:var(--text-mid);margin-bottom:4px;">${escapeHtml(r)}</li>`).join('');
+      const notes = obj.engagement_notes ? `<div class="prop-row prop-notes" style="margin-top:8px;"><div class="prop-key">Engagement Notes</div><div class="prop-val">${escapeHtml(obj.engagement_notes)}</div></div>` : '';
+      html += `<div style="margin-bottom:16px;">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-lo);margin-bottom:8px;">Props Specification</div>
+        <div class="props-grid">${rows}</div>
+        ${rules ? `<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);"><div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-lo);margin-bottom:8px;">Consistency Rules</div><ul style="padding-left:16px;margin:0;">${rules}</ul></div>` : ''}
+        ${notes}
+      </div>`;
+    } else if (!part1Text && !part3Text) {
+      html = `<pre class="pipeline-raw">${escapeHtml(raw)}</pre>`;
+    }
+
+    // Part 3: Vessel State Machine
+    if (part3Text) {
+      html += `<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-lo);margin-bottom:8px;">Vessel State Machine</div>
+        <pre class="pipeline-raw" style="max-height:320px;">${escapeHtml(part3Text)}</pre>
+      </div>`;
+    }
+
+    el.innerHTML = html;
+    showPipelineState('cont','output');
+  }
+
+  function resetContinuity() { showPipelineState('cont','ready'); }
+
+  async function proceedToStoryboard() {
+    showPipelineState('sb','ready');
+    switchView('view-storyboard','Director Storyboard');
+  }
+
+  // ── DIRECTOR STORYBOARD ───────────────────────────────
+
+  async function triggerStoryboard() {
+    if (storyboardOutput) storyboardHistory.push(storyboardOutput);
+    showPipelineState('sb','generating');
+    const steps = [
+      {id:'sb1', label:'All briefs assembled',      desc:'Idea, science, recipe, and continuity passed to Director.'},
+      {id:'sb2', label:'Gemini API request',         desc:'Director synthesising inputs into storyboard.'},
+      {id:'sb3', label:'Storyboard received',        desc:'Phase-by-phase production plan returned.'},
+      {id:'sb4', label:'Storyboard ready',           desc:'Director brief complete.'},
+    ];
+    renderTimeline('sb-timeline', steps);
+
+    await delay(300); setStep('sb1','done');
+    await delay(200); setStep('sb2','active','Sending to Director Agent...');
+
+    const continuityStr = continuityOutput || '';
+
+    const data = await callAgent('/api/run-director-agent', {
+      ...ideaPayload(),
+      science:    scienceOutput   || '',
+      recipe:     recipeOutput    || '',
+      continuity: continuityStr,
+    }, 'sb2');
+
+    if (!data) { showPipelineState('sb','ready'); return; }
+
+    setStep('sb2','done'); await delay(200);
+    setStep('sb3','done'); await delay(200);
+
+    storyboardOutput = data.raw;
+    setStep('sb4','done'); await delay(400);
+
+    document.getElementById('undo-sb').style.display = storyboardHistory.length ? 'inline-flex' : 'none';
+    await saveSession('storyboard_complete', selectedIdea, null);
+    renderStoryboardOutput();
+  }
+
+  function renderStoryboardOutput() {
+    document.getElementById('sb-raw').textContent = storyboardOutput || '';
+    showPipelineState('sb','output');
+  }
+
+  function resetStoryboard() { showPipelineState('sb','ready'); }
+
+  async function proceedToScenes() {
+    showPipelineState('sc','ready');
+    switchView('view-scenes','Scene Creator');
+  }
+
+  // ── SCENE CREATOR ─────────────────────────────────────
+
+  async function triggerScenes() {
+    showPipelineState('sc','generating');
+    const steps = [
+      {id:'sc1', label:'Storyboard and continuity passed', desc:'Inputs assembled for Scene Creator.'},
+      {id:'sc2', label:'Gemini API request',               desc:'Generating clip-level IDEOGRAM, KLING, VOICEOVER prompts.'},
+      {id:'sc3', label:'Scene breakdown received',         desc:'Raw output returned.'},
+      {id:'sc4', label:'Parsing clips',                    desc:'Extracting phases and individual clips.'},
+      {id:'sc5', label:'Scene breakdown ready',            desc:'All clips structured and ready.'},
+    ];
+    renderTimeline('sc-timeline', steps);
+
+    await delay(300); setStep('sc1','done');
+    await delay(200); setStep('sc2','active','Scene Creator running — this may take 30–60 seconds...');
+
+    const continuityStr = continuityOutput || '';
+
+    const data = await callAgent('/api/run-scene-creator', {
+      storyboard: storyboardOutput || '',
+      continuity: continuityStr,
+    }, 'sc2');
+
+    if (!data) { showPipelineState('sc','ready'); return; }
+
+    setStep('sc2','done'); await delay(200);
+    setStep('sc3','done'); await delay(200);
+    setStep('sc4','active', 'Extracting clips...');
+    await delay(300);
+
+    scenesOutput = data.phases || [];
+    scenesRaw = data.raw || '';
+    scenesReviewed = false;
+    setStep('sc4','done'); await delay(200);
+    setStep('sc5','done', `${scenesOutput.length} phases, ${data.phases?.reduce((a,p)=>a+p.clips.length,0)||0} clips ready. Handing to Scene Reviewer…`);
+    await delay(700);
+
+    await saveSession('scenes_complete', selectedIdea, null);
+
+    // Scene Reviewer is a MANDATORY QA pass — auto-run it on the fresh draft so the
+    // user always works from the reviewed breakdown, never the raw creator draft.
+    // refineScenes() falls back to the unreviewed draft if the review call fails.
+    await refineScenes(null, true);
+  }
+
+  async function refineScenes(btn, auto = false) {
+    if (!scenesRaw) { showToast('Generate the scene breakdown first.'); return; }
+    showPipelineState('sc','generating');
+    const steps = [
+      {id:'scr1', label:'Scenes, recipe and continuity assembled', desc:'Inputs prepared for the Scene Reviewer.'},
+      {id:'scr2', label:'Gemini API request',                     desc:'Auditing every clip for consistency, clutter, and missing shots.'},
+      {id:'scr3', label:'Reviewed breakdown received',            desc:'Corrected output returned.'},
+      {id:'scr4', label:'Parsing clips',                          desc:'Extracting refined phases and clips.'},
+      {id:'scr5', label:'Refinement complete',                    desc:'Edited clips flagged and check notes added.'},
+    ];
+    renderTimeline('sc-timeline', steps);
+
+    await delay(300); setStep('scr1','done');
+    await delay(200); setStep('scr2','active', auto
+      ? 'Mandatory QA pass — Scene Reviewer auditing every clip…'
+      : 'Scene Reviewer running — this may take 30–90 seconds...');
+
+    const data = await callAgent('/api/run-scene-reviewer', {
+      recipe:     recipeOutput     || '',
+      continuity: continuityOutput || '',
+      scenes:     scenesRaw,
+    }, 'scr2');
+
+    if (!data) {
+      // Review failed. Fall back to the unreviewed creator draft so an API blip
+      // never traps the user on a spinner or loses the whole scene run.
+      if (auto) {
+        showToast('Scene Reviewer failed — showing the unreviewed draft. Use “Review & Refine” to retry.');
+        renderScenesOutput(scenesOutput);
+      }
+      return;  // manual run: the error is already shown on the timeline by callAgent
+    }
+
+    setStep('scr2','done'); await delay(200);
+    setStep('scr3','done'); await delay(200);
+    setStep('scr4','active','Extracting refined clips...'); await delay(300);
+
+    scenesOutput = data.phases || scenesOutput;
+    scenesRaw    = data.raw || scenesRaw;
+    scenesReviewed = true;
+    setStep('scr4','done'); await delay(200);
+
+    const edited = (data.phases || []).reduce((a,p) =>
+      a + p.clips.filter(c => c.change === 'edited' || c.change === 'added').length, 0);
+    setStep('scr5','done', `${edited} clip${edited === 1 ? '' : 's'} edited or added.`);
+    await delay(500);
+
+    await saveSession('scenes_complete', selectedIdea, null);
+    renderScenesOutput(scenesOutput);   // switches back to the output view
+  }
+
+  function renderScenesOutput(phases) {
+    document.getElementById('sc-output-title').textContent = selectedIdea?.title || 'Scene Breakdown';
+    const container = document.getElementById('sc-phases');
+    container.innerHTML = '';
+
+    (phases || []).forEach(phase => {
+      const block = document.createElement('div');
+      block.className = 'phase-block';
+
+      block.innerHTML = `
+        <div class="phase-header">
+          <span class="phase-num">Phase ${phase.number}</span>
+          <span class="phase-name">${escapeHtml(phase.name)}</span>
+          <div class="phase-meta">
+            ${phase.timecode ? `<span>${escapeHtml(phase.timecode)}</span>` : ''}
+            ${phase.clips_count ? `<span>${escapeHtml(phase.clips_count)} clips</span>` : ''}
+            ${phase.duration ? `<span>${escapeHtml(phase.duration)}s</span>` : ''}
+          </div>
+        </div>
+      `;
+
+      (phase.clips || []).forEach(clip => {
+        const vo = clip.voiceover || {};
+        const card = document.createElement('div');
+        card.className = 'clip-card';
+        card.innerHTML = `
+          <div class="clip-header">
+            <span class="clip-num">${escapeHtml(clip.number)}</span>
+            <span class="clip-title">${escapeHtml(clip.title)}</span>
+            ${(clip.change === 'edited' || clip.change === 'added')
+              ? `<span class="clip-badge badge-edited">${escapeHtml(clip.change)}</span>`
+              : `<span class="clip-badge">new</span>`}
+            ${clip.shot_type ? `<span class="clip-shot-type">${escapeHtml(clip.shot_type)}</span>` : ''}
+            <span class="clip-duration">${clip.duration ? `−${escapeHtml(clip.duration)} secs` : ''}</span>
+          </div>
+          ${clip.start_frame || clip.reference_mode ? `
+          <div class="clip-startframe ${clip.reference_mode === 'CONTINUE' ? 'sf-continue' : 'sf-reestablish'}">
+            <span class="sf-icon">▶</span>
+            <span class="sf-mode">${escapeHtml(clip.reference_mode || '')}</span>
+            <span class="sf-text">Start frame: ${escapeHtml(clip.start_frame || (clip.reference_mode === 'RE-ESTABLISH' ? "this clip's Ideogram still" : ''))}</span>
+          </div>` : ''}
+          ${clip.user_check ? `
+          <div class="clip-usercheck"><span class="uc-icon">✅</span><span class="uc-text">${escapeHtml(clip.user_check)}</span></div>` : ''}
+          ${clip.foreground ? `
+          <div class="clip-foreground"><strong style="color:var(--text-hi);font-size:10px;letter-spacing:0.06em;text-transform:uppercase;">Foreground State</strong><br>${escapeHtml(clip.foreground)}</div>` : ''}
+          ${clip.ideogram ? `
+          <div class="clip-section">
+            <div class="clip-section-header">
+              <div class="clip-section-label"><span class="clip-section-dot dot-ideogram"></span>IDEOGRAM</div>
+              <button class="btn-copy" data-text="${escapeHtml(clip.ideogram)}" onclick="copyText(this.dataset.text,this)">⎘ Copy</button>
+            </div>
+            <div class="clip-prompt">${escapeHtml(clip.ideogram)}</div>
+          </div>` : ''}
+          ${clip.note ? `<div class="clip-note"><em>${escapeHtml(clip.note)}</em></div>` : ''}
+          ${clip.kling ? `
+          <div class="clip-section">
+            <div class="clip-section-header">
+              <div class="clip-section-label"><span class="clip-section-dot dot-kling"></span>KLING</div>
+              <button class="btn-copy" data-text="${escapeHtml(clip.kling)}" onclick="copyText(this.dataset.text,this)">⎘ Copy</button>
+            </div>
+            <div class="clip-prompt">${escapeHtml(clip.kling)}</div>
+          </div>` : ''}
+          ${vo.text ? `
+          <div class="clip-section">
+            <div class="clip-section-header">
+              <div class="clip-section-label"><span class="clip-section-dot dot-vo"></span>VOICEOVER</div>
+              <button class="btn-copy" data-text="${escapeHtml(vo.text)}" onclick="copyText(this.dataset.text,this)">⎘ Copy</button>
+            </div>
+            <div class="clip-vo-params">LINE ${escapeHtml(vo.line)} · SPEED ${escapeHtml(vo.speed)} · STABILITY ${escapeHtml(vo.stability)}</div>
+            <div class="clip-vo-text">"${escapeHtml(vo.text)}"</div>
+          </div>` : ''}
+        `;
+        block.appendChild(card);
+      });
+
+      container.appendChild(block);
+    });
+
+    showPipelineState('sc','output');
+  }
+
+  function resetScenes() { showPipelineState('sc','ready'); scenesOutput = null; scenesRaw = ''; scenesReviewed = false; }
+
+  // ── UPLOAD PACKAGER ───────────────────────────────────
+
+  function openUploadWarning() {
+    // The reviewer normally auto-runs; only nudge if it never succeeded (e.g. it errored).
+    if (scenesRaw && !scenesReviewed) {
+      showToast('Heads up: the Scene Reviewer hasn’t passed on this breakdown yet. Consider “Review & Refine” before uploading.');
+    }
+    document.getElementById('uploadWarningModal').classList.add('open');
+  }
+
+  function proceedToUpload() {
+    showPipelineState('up', uploadOutput ? 'output' : 'ready');
+    switchView('view-upload', 'Upload Packager');
+    if (uploadOutput) renderUploadOutput(uploadOutput, false);
+  }
+
+  async function triggerUploadPackager() {
+    showPipelineState('up', 'generating');
+    const steps = [
+      {id:'up1', label:'Pipeline data assembled',    desc:'Concept, science, recipe, and storyboard gathered.'},
+      {id:'up2', label:'Gemini API request',         desc:'Generating titles, description, and comments.'},
+      {id:'up3', label:'Upload pack received',       desc:'Raw output returned.'},
+      {id:'up4', label:'Upload pack ready',          desc:'All sections structured and ready to copy.'},
+    ];
+    renderTimeline('up-timeline', steps);
+
+    await delay(300); setStep('up1','done');
+    await delay(200); setStep('up2','active','Upload Packager running — up to 45 seconds...');
+
+    const data = await callAgent('/api/run-upload-packager', {
+      ...ideaPayload(),
+      science:    scienceOutput   || '',
+      recipe:     recipeOutput    || '',
+      storyboard: storyboardOutput || '',
+    }, 'up2');
+
+    if (!data) { showPipelineState('up','ready'); return; }
+
+    setStep('up2','done'); await delay(200);
+    setStep('up3','done'); await delay(200);
+
+    if (uploadOutput) uploadHistory.push(uploadOutput);
+    uploadOutput = data.raw;
+
+    setStep('up4','done'); await delay(400);
+
+    document.getElementById('undo-upload').style.display = uploadHistory.length ? 'inline-flex' : 'none';
+    await saveSession('upload_complete', selectedIdea, null);
+    renderUploadOutput(uploadOutput, true);
+  }
+
+  function _parseUploadSection(raw, tag) {
+    const m = raw.match(new RegExp(`%%${tag}%%\\s*([\\s\\S]*?)(?=%%[A-Z_]+%%|$)`, 'i'));
+    return m ? m[1].trim() : '';
+  }
+
+  function renderUploadOutput(raw, scrollTop) {
+    document.getElementById('up-output-title').textContent = selectedIdea?.title || 'Upload Pack';
+
+    const titleBlock  = _parseUploadSection(raw, 'TITLE_OPTIONS');
+    const descBlock   = _parseUploadSection(raw, 'DESCRIPTION');
+    const pinnedBlock = _parseUploadSection(raw, 'PINNED_COMMENT');
+    const secondBlock = _parseUploadSection(raw, 'SECOND_COMMENT');
+    const clBlock     = _parseUploadSection(raw, 'CHECKLIST');
+
+    // ── TITLE OPTIONS ─────────────────────────────────
+    const optionLabels = { A:'RECOMMENDED ★', B:'TECHNIQUE LED', C:'OUTCOME LED', D:'PROVOCATIVE' };
+    const titleContainer = document.getElementById('up-title-options');
+    titleContainer.innerHTML = '';
+    ['A','B','C','D'].forEach(key => {
+      const m = titleBlock.match(new RegExp(`OPTION_${key}\\s*:\\s*(.+)`, 'i'));
+      if (!m) return;
+      const titleText = m[1].trim();
+      const card = document.createElement('div');
+      card.className = 'pipeline-card';
+      card.style.marginTop = '8px';
+      card.innerHTML = `
+        <div class="clip-section-header" style="margin-bottom:6px;">
+          <span style="font-size:10px;letter-spacing:.12em;color:${key==='A'?'var(--gold)':'var(--text-lo)'};">
+            OPTION ${key} — ${optionLabels[key]}
+          </span>
+          <button class="btn-copy" data-copy="${escapeHtml(titleText)}" onclick="copyText(this.dataset.copy,this)">⎘ Copy</button>
+        </div>
+        <div style="font-size:14px;color:var(--text-hi);font-weight:500;">${escapeHtml(titleText)}</div>
+      `;
+      titleContainer.appendChild(card);
+    });
+    const reasoningM = titleBlock.match(/REASONING\s*:\s*([\s\S]+)/i);
+    if (reasoningM) {
+      const note = document.createElement('p');
+      note.style.cssText = 'font-size:11px;color:var(--text-lo);font-style:italic;margin:8px 0 0;';
+      note.textContent = reasoningM[1].trim();
+      titleContainer.appendChild(note);
+    }
+
+    // ── DESCRIPTION ──────────────────────────────────
+    const rationaleDescM = descBlock.match(/\nRATIONALE\s*:\s*([\s\S]+)/i);
+    const descText = rationaleDescM
+      ? descBlock.slice(0, descBlock.search(/\nRATIONALE\s*:/i)).trim()
+      : descBlock;
+    document.getElementById('up-desc-raw').textContent = descText;
+    document.getElementById('up-desc-rationale').textContent = rationaleDescM ? rationaleDescM[1].trim() : '';
+
+    // ── PINNED COMMENT ───────────────────────────────
+    const pinnedTextM = pinnedBlock.match(/TEXT\s*:\s*([\s\S]+?)(?=\nRATIONALE|$)/i);
+    const pinnedRatM  = pinnedBlock.match(/RATIONALE\s*:\s*([\s\S]+)/i);
+    document.getElementById('up-pinned-text').textContent  = pinnedTextM ? pinnedTextM[1].trim() : pinnedBlock.trim();
+    document.getElementById('up-pinned-rationale').textContent = pinnedRatM ? pinnedRatM[1].trim() : '';
+
+    // ── SECOND COMMENT ───────────────────────────────
+    const secondTextM = secondBlock.match(/TEXT\s*:\s*([\s\S]+?)(?=\nRATIONALE|$)/i);
+    const secondRatM  = secondBlock.match(/RATIONALE\s*:\s*([\s\S]+)/i);
+    document.getElementById('up-second-text').textContent  = secondTextM ? secondTextM[1].trim() : secondBlock.trim();
+    document.getElementById('up-second-rationale').textContent = secondRatM ? secondRatM[1].trim() : '';
+
+    // ── CHECKLIST ─────────────────────────────────────
+    const clContainer = document.getElementById('up-checklist');
+    const items = clBlock.split('\n')
+      .map(l => l.replace(/^\s*\d+\.\s*/, '').replace(/^[-•]\s*/, '').trim())
+      .filter(l => l.length > 0);
+    clContainer.innerHTML = items.map(item => `
+      <label style="display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;cursor:pointer;">
+        <input type="checkbox" style="margin-top:3px;flex-shrink:0;accent-color:var(--gold);">
+        <span style="font-size:13px;color:var(--text-hi);line-height:1.6;">${escapeHtml(item)}</span>
+      </label>
+    `).join('');
+
+    // ── ON-SCREEN HOOK TEXT ───────────────────────────
+    const hookBlock = _parseUploadSection(raw, 'HOOK_TEXT');
+    const hookCard  = document.getElementById('up-hooktext-card');
+    const hookCont  = document.getElementById('up-hooktext');
+    const hookLines = ['1','2','3']
+      .map(n => (hookBlock.match(new RegExp(`OPTION_${n}\\s*:\\s*(.+)`, 'i')) || [])[1])
+      .filter(Boolean).map(s => s.trim());
+    if (hookLines.length) {
+      hookCont.innerHTML = hookLines.map(t => `
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px;">
+          <span style="font-size:15px;color:var(--text-hi);font-weight:600;">${escapeHtml(t)}</span>
+          <button class="btn-copy" data-copy="${escapeHtml(t)}" onclick="copyText(this.dataset.copy,this)">⎘ Copy</button>
+        </div>`).join('');
+      hookCard.style.display = 'block';
+    } else { hookCard.style.display = 'none'; }
+
+    // ── FAQ REPLIES ───────────────────────────────────
+    const faqBlock = _parseUploadSection(raw, 'FAQ_REPLIES');
+    const faqCard  = document.getElementById('up-faq-card');
+    const faqCont  = document.getElementById('up-faq');
+    const faqPairs = [];
+    const faqRe = /Q\s*:\s*([\s\S]*?)\nA\s*:\s*([\s\S]*?)(?=\nQ\s*:|$)/gi;
+    let fm;
+    while ((fm = faqRe.exec(faqBlock)) !== null) {
+      faqPairs.push({ q: fm[1].trim(), a: fm[2].trim() });
+    }
+    if (faqPairs.length) {
+      faqCont.innerHTML = faqPairs.map(p => `
+        <div style="margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:10px;">
+          <div style="font-size:12px;color:var(--text-mid);margin-bottom:4px;">Q: ${escapeHtml(p.q)}</div>
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+            <span style="font-size:13px;color:var(--text-hi);line-height:1.6;">A: ${escapeHtml(p.a)}</span>
+            <button class="btn-copy" data-copy="${escapeHtml(p.a)}" onclick="copyText(this.dataset.copy,this)">⎘ Copy</button>
+          </div>
+        </div>`).join('');
+      faqCard.style.display = 'block';
+    } else { faqCard.style.display = 'none'; }
+
+    // ── PER-PLATFORM CAPTIONS (bottom) ────────────────
+    const platBlock = _parseUploadSection(raw, 'PLATFORM_CAPTIONS');
+    const platCard  = document.getElementById('up-platform-card');
+    const platCont  = document.getElementById('up-platform');
+    const platRows  = [];
+    ['TIKTOK','INSTAGRAM'].forEach(p => {
+      const m = platBlock.match(new RegExp(`${p}\\s*:\\s*([\\s\\S]*?)(?=\\n(?:TIKTOK|INSTAGRAM)\\s*:|$)`, 'i'));
+      if (m && m[1].trim()) platRows.push({ p, t: m[1].trim() });
+    });
+    if (platRows.length) {
+      platCont.innerHTML = platRows.map(r => `
+        <div style="margin-bottom:14px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            <span style="font-size:10px;letter-spacing:.1em;color:var(--gold-pale);">${r.p}</span>
+            <button class="btn-copy" data-copy="${escapeHtml(r.t)}" onclick="copyText(this.dataset.copy,this)">⎘ Copy</button>
+          </div>
+          <div style="font-size:13px;color:var(--text-hi);line-height:1.6;white-space:pre-wrap;">${escapeHtml(r.t)}</div>
+        </div>`).join('');
+      platCard.style.display = 'block';
+    } else { platCard.style.display = 'none'; }
+
+    document.getElementById('undo-upload').style.display = uploadHistory.length ? 'inline-flex' : 'none';
+    showPipelineState('up', 'output');
+    if (scrollTop) window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  async function regenUpload(btn) {
+    if (uploadOutput) uploadHistory.push(uploadOutput);
+    const prev = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Running...'; }
+    const data = await callAgent('/api/run-upload-packager', {
+      ...ideaPayload(),
+      science:    scienceOutput    || '',
+      recipe:     recipeOutput     || '',
+      storyboard: storyboardOutput || '',
+    }, null);
+    if (btn) { btn.disabled = false; btn.textContent = prev || '↺ Regenerate'; }
+    if (!data) { uploadHistory.pop(); showToast('Upload Packager failed.'); return; }
+    uploadOutput = data.raw;
+    document.getElementById('undo-upload').style.display = uploadHistory.length ? 'inline-flex' : 'none';
+    await saveSession('upload_complete', selectedIdea, null);
+    renderUploadOutput(uploadOutput, false);
+  }
+
+  function undoUpload() {
+    if (!uploadHistory.length) return;
+    uploadOutput = uploadHistory.pop();
+    document.getElementById('undo-upload').style.display = uploadHistory.length ? 'inline-flex' : 'none';
+    renderUploadOutput(uploadOutput, false);
+    saveSession('upload_complete', selectedIdea, null);
+  }
+
+  // ── COPY UTILITIES ────────────────────────────────────
+
+  function copyText(text, btn) {
+    navigator.clipboard.writeText(text).then(() => {
+      const prev = btn.textContent;
+      btn.textContent = '✓';
+      btn.style.color = 'var(--green)';
+      setTimeout(() => { btn.textContent = prev; btn.style.color = ''; }, 1500);
+    }).catch(() => showToast('Copy failed.'));
+  }
+
+  function copyFromPre(preId, btn) {
+    const el = document.getElementById(preId);
+    if (el) copyText(el.textContent, btn);
+  }
+
+  function copyContinuityJson(btn) {
+    const raw = (typeof continuityOutput === 'object' && continuityOutput !== null)
+      ? JSON.stringify(continuityOutput, null, 2)
+      : String(continuityOutput || '');
+    const jsonMatch = raw.match(/\{[\s\S]+\}/);
+    let text = raw;
+    if (jsonMatch) {
+      try { text = JSON.stringify(JSON.parse(jsonMatch[0]), null, 2); } catch(e) { text = jsonMatch[0]; }
+    }
+    copyText(text, btn);
+  }
+
+  // ── EDIT MODE ─────────────────────────────────────────
+
+  function toggleEdit(stage, rawId, textareaId, btn) {
+    const pre  = document.getElementById(rawId);
+    const ta   = document.getElementById(textareaId);
+    const open = ta.style.display === 'block';
+    if (open) {
+      // Commit edit
+      _applyEdit(stage, ta.value, rawId);
+      ta.style.display = 'none';
+      pre.style.display = '';
+      btn.textContent = '✎ Edit';
+      btn.classList.remove('active');
+    } else {
+      // Enter edit mode
+      ta.value = pre.textContent;
+      ta.style.display = 'block';
+      pre.style.display = 'none';
+      btn.textContent = '✓ Done';
+      btn.classList.add('active');
+      ta.focus();
+    }
+  }
+
+  function saveEdit(stage, rawId, textareaId, toggleBtnId) {
+    const ta  = document.getElementById(textareaId);
+    const btn = document.getElementById(toggleBtnId);
+    if (!ta || ta.style.display !== 'block') return;
+    _applyEdit(stage, ta.value, rawId);
+    ta.style.display = 'none';
+    document.getElementById(rawId).style.display = '';
+    if (btn) { btn.textContent = '✎ Edit'; btn.classList.remove('active'); }
+    saveSession(
+      stage === 'science' || stage === 'recipe' ? 'preproduction_complete'
+      : stage === 'sb' ? 'storyboard_complete' : 'continuity_complete',
+      selectedIdea, null
+    );
+  }
+
+  function _applyEdit(stage, value, rawId) {
+    document.getElementById(rawId).textContent = value;
+    if (stage === 'science')  scienceOutput    = value;
+    if (stage === 'recipe')   recipeOutput     = value;
+    if (stage === 'sb')       storyboardOutput = value;
+  }
+
+  // ── UNDO ──────────────────────────────────────────────
+
+  function undoScience() {
+    if (!scienceHistory.length) return;
+    scienceOutput = scienceHistory.pop();
+    document.getElementById('pp-science-raw').textContent = scienceOutput;
+    document.getElementById('undo-science').style.display = scienceHistory.length ? 'inline-flex' : 'none';
+    saveSession('preproduction_complete', selectedIdea, null);
+  }
+
+  function undoRecipe() {
+    if (!recipeHistory.length) return;
+    recipeOutput = recipeHistory.pop();
+    document.getElementById('pp-recipe-raw').textContent = recipeOutput;
+    document.getElementById('undo-recipe').style.display = recipeHistory.length ? 'inline-flex' : 'none';
+    saveSession('preproduction_complete', selectedIdea, null);
+  }
+
+  function undoContinuity() {
+    if (!continuityHistory.length) return;
+    continuityOutput = continuityHistory.pop();
+    document.getElementById('undo-cont').style.display = continuityHistory.length ? 'inline-flex' : 'none';
+    renderContinuityOutput();
+    saveSession('continuity_complete', selectedIdea, null);
+  }
+
+  function undoStoryboard() {
+    if (!storyboardHistory.length) return;
+    storyboardOutput = storyboardHistory.pop();
+    document.getElementById('sb-raw').textContent = storyboardOutput;
+    document.getElementById('undo-sb').style.display = storyboardHistory.length ? 'inline-flex' : 'none';
+    saveSession('storyboard_complete', selectedIdea, null);
+  }
+
+  // ── VOICEOVER SCRIPT VIEW ─────────────────────────────
+
+  function openScriptView() {
+    const content = document.getElementById('script-content');
+    if (!scenesOutput || !scenesOutput.length) {
+      content.innerHTML = '<p style="color:var(--text-mid);text-align:center;padding:20px;">No scenes generated yet.</p>';
+      document.getElementById('scriptModal').classList.add('open');
+      return;
+    }
+    let html = '';
+    let plainText = '';
+    scenesOutput.forEach(phase => {
+      html += `<div class="script-phase-label">Phase ${escapeHtml(phase.number)} · ${escapeHtml(phase.name || '')}</div>`;
+      (phase.clips || []).forEach(clip => {
+        const vo = clip.voiceover || {};
+        if (!vo.text) return;
+        html += `
+          <div class="script-line">
+            <div class="script-clip-meta">Clip ${escapeHtml(clip.number)} · Speed ${escapeHtml(vo.speed||'1.0')} · Stability ${escapeHtml(vo.stability||'72')}</div>
+            <div class="script-line-text">"${escapeHtml(vo.text)}"</div>
+          </div>`;
+        plainText += `[Phase ${phase.number} · Clip ${clip.number}]\n"${vo.text}"\n\n`;
+      });
+    });
+    content.innerHTML = html;
+    content._scriptText = plainText.trim();
+    document.getElementById('scriptModal').classList.add('open');
+  }
+
+  function copyScript(btn) {
+    const content = document.getElementById('script-content');
+    copyText(content._scriptText || '', btn);
+  }
+
+  // ── EXPORT PROTOCOL ───────────────────────────────────
+
+  async function exportProtocol() {
+    if (!currentSessionId) {
+      showToast('Save the session first — run at least one pipeline stage.');
+      return;
+    }
+    try {
+      const res = await fetch('/api/export-protocol', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ session_id: currentSessionId })
+      });
+      if (!res.ok) throw new Error('Export failed.');
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `${(selectedIdea?.title || 'protocol').replace(/[^a-z0-9]/gi,'_')}_protocol.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('Protocol exported ✓');
+    } catch (e) {
+      showToast('Export failed: ' + e.message);
+    }
+  }
+
+  let _saveMdPending = false;
+  async function saveProtocolMd(btn) {
+    if (!currentSessionId) {
+      showToast('Save the session first — run at least one pipeline stage.');
+      return;
+    }
+    // Two-click confirm: this archives the protocol and removes it from the unfinished list.
+    if (!_saveMdPending) {
+      _saveMdPending = true;
+      const orig = btn.textContent;
+      btn.dataset.orig = orig;
+      btn.textContent = 'Confirm save & archive?';
+      btn.style.borderColor = 'var(--gold)';
+      setTimeout(() => {
+        if (_saveMdPending) {
+          _saveMdPending = false;
+          btn.textContent = btn.dataset.orig || '💾 Save MD File';
+          btn.style.borderColor = '';
+        }
+      }, 4000);
+      return;
+    }
+    _saveMdPending = false;
+    btn.textContent = 'Saving…'; btn.disabled = true; btn.style.borderColor = '';
+    try {
+      const res = await fetch('/api/save-protocol', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: currentSessionId })
+      });
+      const d = await res.json();
+      if (!d.success) throw new Error(d.error || 'Save failed.');
+      showToast('Saved & archived — find it in View Database ✓');
+      currentSessionId = null;   // session is now archived/removed
+      goHome();
+    } catch (e) {
+      btn.disabled = false;
+      btn.textContent = btn.dataset.orig || '💾 Save MD File';
+      showToast('Save failed: ' + e.message);
+    }
+  }
+
+  // ── ARCHIVE VIEWER (View Database → click an idea) ────
+  async function openArchiveViewer(title) {
+    let data;
+    try {
+      const res = await fetch('/api/protocol-md?title=' + encodeURIComponent(title));
+      data = await res.json();
+    } catch { showToast('Could not load archive.'); return; }
+
+    const old = document.getElementById('archiveOverlay');
+    if (old) old.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'archiveOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.82);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;';
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+    if (!data || !data.found) {
+      overlay.innerHTML = `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:40px;text-align:center;max-width:420px;">
+        <div style="font-size:15px;color:var(--text-hi);margin-bottom:8px;">${escapeHtml(title)}</div>
+        <div style="color:var(--text-mid);">Protocol has no data.</div>
+        <button class="btn-ghost" style="margin-top:18px;" onclick="document.getElementById('archiveOverlay').remove()">Close</button>
+      </div>`;
+      document.body.appendChild(overlay);
+      return;
+    }
+
+    const md = data.content || '';
+    const firstIdx = md.search(/^## /m);
+    const header = firstIdx >= 0 ? md.slice(0, firstIdx).trim() : md.trim();
+    const rest   = firstIdx >= 0 ? md.slice(firstIdx) : '';
+    const sections = rest.split(/^## /m).filter(Boolean).map(c => {
+      const nl = c.indexOf('\n');
+      return { name: (nl >= 0 ? c.slice(0, nl) : c).trim(), body: (nl >= 0 ? c.slice(nl + 1) : '').trim() };
+    });
+    const allSections = [{ name: 'Overview', body: header }, ...sections];
+
+    const navHtml = allSections.map((s, i) =>
+      `<button class="archive-nav-btn" data-i="${i}" style="display:block;width:100%;text-align:left;padding:9px 14px;background:none;border:none;border-left:2px solid transparent;color:var(--text-mid);cursor:pointer;font-size:12px;">${escapeHtml(s.name)}</button>`
+    ).join('');
+    overlay.innerHTML = `
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;width:min(900px,95vw);height:85vh;display:flex;flex-direction:column;overflow:hidden;">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border);">
+          <div style="font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--text-hi);">${escapeHtml(title)}</div>
+          <button class="btn-ghost" onclick="document.getElementById('archiveOverlay').remove()">✕ Close</button>
+        </div>
+        <div style="display:flex;flex:1;min-height:0;">
+          <div style="width:210px;border-right:1px solid var(--border);overflow-y:auto;padding:8px 0;flex-shrink:0;">${navHtml}</div>
+          <pre id="archiveContent" style="flex:1;overflow:auto;margin:0;padding:20px;white-space:pre-wrap;font-size:12px;color:var(--text-hi);line-height:1.6;font-family:inherit;"></pre>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+
+    const contentEl = overlay.querySelector('#archiveContent');
+    const navBtns = overlay.querySelectorAll('.archive-nav-btn');
+    function show(i) {
+      contentEl.textContent = allSections[i].body || '(empty)';
+      navBtns.forEach(b => { b.style.borderLeftColor = 'transparent'; b.style.color = 'var(--text-mid)'; });
+      navBtns[i].style.borderLeftColor = 'var(--gold)';
+      navBtns[i].style.color = 'var(--text-hi)';
+    }
+    navBtns.forEach(b => b.onclick = () => show(parseInt(b.dataset.i, 10)));
+    show(0);
+  }
+
+  // ── STYLE PERFORMANCE STATS ───────────────────────────
+
+  async function loadStyleStats() {
+    try {
+      const res  = await fetch('/api/video-stats');
+      const data = await res.json();
+      const keys = ['bar','science','comparison','mythbusting','historical','challenge'];
+      keys.forEach(k => {
+        const el = document.getElementById(`stat-${k}`);
+        if (!el) return;
+        if (data[k]) {
+          el.textContent = `Avg rating: ${data[k].avg}/10 · ${data[k].count} video${data[k].count !== 1 ? 's' : ''}`;
+          el.classList.add('has-data');
+        } else {
+          el.textContent = 'No rated videos yet';
+          el.classList.remove('has-data');
+        }
+      });
+    } catch { /* non-fatal */ }
+  }
+
+  // ── SESSION PERSISTENCE ──────────────────────────────
+
+  async function saveSession(stage, idea, _unused) {
+    try {
+      const res = await fetch('/api/session/save', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          session_id:        currentSessionId,
+          stage,
+          idea:              idea || selectedIdea,
+          style:             selectedStyle    || null,
+          science_output:    scienceOutput    || null,
+          recipe_output:     recipeOutput     || null,
+          continuity_output: continuityOutput || null,
+          storyboard_output: storyboardOutput || null,
+          scenes_output:     scenesOutput     || null,
+          upload_output:     uploadOutput     || null,
+        })
+      });
+      const d = await res.json();
+      if (d.session_id) currentSessionId = d.session_id;
+    } catch (e) { /* non-fatal */ }
+  }
+
+  async function resumeSession() {
+    let sessions;
+    try {
+      const res = await fetch('/api/sessions');
+      sessions = await res.json();
+    } catch (e) {
+      showToast('Could not load sessions.');
+      return;
+    }
+
+    if (!sessions || sessions.length === 0) {
+      showToast('No saved sessions found.');
+      return;
+    }
+
+    // Reuse the existing list modal
+    document.getElementById('listModalTitle').textContent = 'Unfinished Protocols';
+    document.getElementById('listModalSub').textContent   = 'Select a session to resume where you left off.';
+    const container = document.getElementById('listContainer');
+    container.innerHTML = '';
+    document.getElementById('listModal').classList.add('open');
+
+    // Sort newest first
+    const sorted = [...sessions].sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+
+    sorted.forEach(session => {
+      const div = document.createElement('div');
+      div.className = 'db-list-item';
+      div.style.gap = '10px';
+
+      const stageMap = {
+        idea_selected:         ['Idea Selected',          'var(--gold)'],
+        preproduction_complete:['Pre-Production Complete','var(--gold-pale)'],
+        continuity_complete:   ['Continuity Ready',       'var(--text-mid)'],
+        storyboard_complete:   ['Storyboard Complete',    'var(--text-mid)'],
+        director_complete:     ['Storyboard Complete',    'var(--text-mid)'],
+        scenes_complete:       ['Scenes Generated',       'var(--green)'],
+        upload_complete:       ['Upload Pack Ready',      'var(--green)'],
+      };
+      const [stageLabel, stageColor] = stageMap[session.stage] || ['In Progress','var(--text-lo)'];
+      const date       = session.updated_at ? session.updated_at.slice(0, 10) : '';
+
+      div.innerHTML = `
+        <div style="flex:1;min-width:0;cursor:pointer;" class="list-item-body">
+          <div class="list-item-title">${escapeHtml(session.title)}</div>
+          <div class="list-item-meta">
+            ${session.cocktail ? escapeHtml(session.cocktail) + ' · ' : ''}
+            <span style="color:${stageColor}">${stageLabel}</span>
+            ${date ? ' · ' + date : ''}
+          </div>
+        </div>
+        <button class="btn-delete-row" title="Delete session">✕</button>
+      `;
+
+      div.querySelector('.list-item-body').onclick = async () => {
+        closeModal('listModal');
+        await restoreSession(session.id);
+      };
+
+      div.querySelector('.btn-delete-row').onclick = async (e) => {
+        e.stopPropagation();
+        const btn = e.currentTarget;
+        if (btn.dataset.confirm !== 'true') {
+          btn.dataset.confirm = 'true';
+          btn.textContent = '?';
+          btn.style.borderColor = 'var(--red)';
+          btn.style.color = 'var(--red)';
+          setTimeout(() => {
+            btn.dataset.confirm = '';
+            btn.textContent = '✕';
+            btn.style.borderColor = '';
+            btn.style.color = '';
+          }, 2500);
+          return;
+        }
+        try {
+          await fetch(`/api/session/${session.id}`, { method: 'DELETE' });
+          div.remove();
+          if (!container.querySelector('.db-list-item')) {
+            container.innerHTML = '<div style="color:var(--text-mid);text-align:center;padding:20px;">No saved sessions found.</div>';
+          }
+        } catch { showToast('Could not delete session.'); }
+      };
+
+      container.appendChild(div);
+    });
+  }
+
+  async function restoreSession(sessionId) {
+    let state;
+    try {
+      const res = await fetch(`/api/session/${sessionId}`);
+      state = await res.json();
+    } catch (e) {
+      showToast('Could not load session.');
+      return;
+    }
+
+    if (!state.exists || !state.idea) {
+      showToast('Session data missing.');
+      return;
+    }
+
+    currentSessionId    = sessionId;
+    selectedIdea        = state.idea;
+    selectedStyle       = state.style || 'bar';
+    _ideaFromExistingDb = false;
+
+    // Reset ephemeral history
+    scienceHistory = []; recipeHistory = []; continuityHistory = []; storyboardHistory = [];
+
+    const stage = state.stage;
+
+    // Set up the idea summary box and base view first. goToDirectorAgent() resets
+    // some pipeline globals (notably uploadOutput), so we restore the session's
+    // pipeline outputs AFTER calling it — otherwise the upload_complete branch
+    // below sees a nulled uploadOutput and falls through to pre-production.
+    goToDirectorAgent();
+
+    // Restore pipeline state vars from session (after goToDirectorAgent's reset)
+    scienceOutput    = state.science_output    || null;
+    recipeOutput     = state.recipe_output     || null;
+    continuityOutput = state.continuity_output || null;
+    storyboardOutput = state.storyboard_output || null;
+    scenesOutput     = state.scenes_output     || null;
+    uploadOutput     = state.upload_output     || null;
+
+    if (stage === 'upload_complete' && uploadOutput) {
+      renderScenesOutput(scenesOutput || []);
+      showPipelineState('sc', 'output');
+      showPipelineState('up', 'ready');
+      switchView('view-upload', 'Upload Packager');
+      renderUploadOutput(uploadOutput, false);
+
+    } else if ((stage === 'scenes_complete') && scenesOutput) {
+      renderScenesOutput(scenesOutput);
+      switchView('view-scenes', 'Scene Creator');
+      showPipelineState('sc', 'output');
+
+    } else if ((stage === 'storyboard_complete' || stage === 'director_complete') && storyboardOutput) {
+      renderStoryboardOutput();
+      switchView('view-storyboard', 'Director Storyboard');
+      showPipelineState('sb', 'output');
+
+    } else if (stage === 'continuity_complete' && continuityOutput) {
+      renderContinuityOutput();
+      // renderContinuityOutput already calls showPipelineState('cont','output')
+      switchView('view-continuity', 'Continuity Manager');
+
+    } else if (stage === 'preproduction_complete' && (scienceOutput || recipeOutput)) {
+      renderPreProductionOutput();
+      // already at view-director-agent
+
+    } else {
+      // idea_selected or unknown — just show pre-production ready state
+      showPipelineState('pp', 'ready');
+    }
+  }
+
+  // ── CLEAR WORKING IDEAS ───────────────────────────────
+
+  let clearPending = false;
+
+  function confirmClearIdeas() {
+    const btn = document.getElementById('btn-clear-ideas');
+    if (!clearPending) {
+      clearPending = true;
+      btn.textContent = 'Confirm? Click again to delete all';
+      btn.style.borderColor = 'var(--red)';
+      btn.style.background = 'rgba(224,90,79,0.1)';
+      setTimeout(() => {
+        clearPending = false;
+        btn.textContent = 'Clear Existing Ideas';
+        btn.style.background = '';
+      }, 3000);
+      return;
+    }
+
+    clearPending = false;
+    fetch('/api/clear-working-ideas', { method: 'POST' })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          document.getElementById('listContainer').innerHTML =
+            '<div style="color:var(--text-mid);text-align:center;padding:20px;">No matching records found.</div>';
+          btn.textContent = 'Clear Existing Ideas';
+          btn.style.background = '';
+          showToast('Working ideas cleared ✓');
+        } else {
+          showToast('Error: ' + (data.error || 'Failed to clear ideas.'));
+        }
+      })
+      .catch(() => showToast('Database connection error.'));
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g,  '&amp;')
+      .replace(/</g,  '&lt;')
+      .replace(/>/g,  '&gt;')
+      .replace(/"/g,  '&quot;');
+  }
+</script>
+</body>
+</html>
