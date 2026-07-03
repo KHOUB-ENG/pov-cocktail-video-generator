@@ -19,10 +19,7 @@ cancellation, per-agent generation tuning, and resumable session state.
 > ready-to-paste **Ideogram** still prompts and **Kling** image-to-video prompts + voiceover
 > lines), and a YouTube upload package (titles, description, pinned comments, checklist).
 
-> **▶ Screenshot:** run the app, capture the dashboard, and save it as `docs/screenshot.png`,
-> then uncomment the line below to display it.
->
-> <![POV Cocktail Video Generator dashboard](docs/screenshot.png) 
+>![POV Cocktail Video Generator dashboard](docs/screenshot.png) 
 
 ## Architecture
 
