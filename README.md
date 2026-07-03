@@ -22,7 +22,7 @@ cancellation, per-agent generation tuning, and resumable session state.
 > **▶ Screenshot:** run the app, capture the dashboard, and save it as `docs/screenshot.png`,
 > then uncomment the line below to display it.
 >
-> <!-- ![POV Cocktail Video Generator dashboard](docs/screenshot.png) -->
+> <![POV Cocktail Video Generator dashboard](docs/screenshot.png) 
 
 ## Architecture
 
